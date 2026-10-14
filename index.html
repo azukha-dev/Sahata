@@ -20,10 +20,11 @@
 .g{background:#27272a;color:#fff;font-weight:600;border-radius:8px;padding:10px 18px;font-size:14px}
 .c{background:#09090b;border:1px solid #27272a;border-radius:16px}
 .i{font-size:16px}button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}html{overscroll-behavior-y:none}
+#ov{height:100vh;height:100dvh}
 @media(max-width:640px){nav{position:fixed!important;top:auto!important;bottom:0;left:0;right:0;z-index:45;justify-content:space-around;border-top:1px solid #27272a;border-bottom:0;padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;min-height:68px;justify-content:center;padding:10px 4px!important;font-size:12px!important;border-bottom:0!important;border-top:3px solid transparent}.e{font-size:24px;line-height:1}
 nav button.border-white{border-top-color:#fa541c!important}main{padding-bottom:120px!important}#toast{bottom:110px}}
-@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25);color:#fa541c}100%{transform:scale(1)}}.pop{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.2);color:#fa541c}100%{transform:scale(1)}}.pop{animation:pop .5s ease}
 @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}50%{box-shadow:0 0 26px 2px rgba(239,68,68,.35)}}.livecard{animation:glow 2s infinite;border-color:#ef4444!important}</style>
 </head>
 <body>
@@ -31,17 +32,18 @@ nav button.border-white{border-top-color:#fa541c!important}main{padding-bottom:1
 <script>const API='https://script.google.com/macros/s/AKfycbybfpMt7eKUufiLwjweqS_rIUGn4h6x26hjU66xztrwe5KBMXodrO64aFR9Wrfuqpd52A/exec';</script>
 
 <div id="app"></div>
-<div id="modal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"><div id="mbox" class="c w-full max-w-md p-6 space-y-3 max-h-[90vh] overflow-y-auto"></div></div>
-<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white text-black text-sm font-semibold px-5 py-2.5 rounded-full shadow-xl"></div>
+<div id="ov" class="hidden fixed inset-0 z-[60] bg-zinc-950"></div>
+<div id="modal" class="hidden fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"><div id="mbox" class="c w-full max-w-md p-6 space-y-3 max-h-[90vh] overflow-y-auto"></div></div>
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] bg-white text-black text-sm font-semibold px-5 py-2.5 rounded-full shadow-xl"></div>
 
 <script>
 const $=s=>document.querySelector(s);
 const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const SPORT={padel:'Padel',badminton:'Bulu Tangkis',tennis:'Tenis',all:'Multi'};
 let U=null;try{U=JSON.parse(localStorage.getItem('sahata_user'))}catch(e){}
-let S={players:[],events:[],matches:[],users:[]},tab='board',sport='all',liveId=null,lastAct=0,mode='login';
+let S={events:[],matches:[],users:[]},tab='board',sport='all',liveId=null,lastAct=0,mode='login',evId=null,ED=null,ovId=null;
 
-function toast(m){const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.add('hidden'),2500)}
+function toast(m,ms){const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.add('hidden'),ms||2500)}
 function modal(h){$('#mbox').innerHTML=h;$('#modal').classList.remove('hidden')}
 function closeM(){$('#modal').classList.add('hidden')}
 async function call(a,d={}){
@@ -49,10 +51,24 @@ async function call(a,d={}){
   catch(e){return{ok:false,error:'Gagal terhubung ke server'}}
 }
 async function load(){
-  if(!U||Date.now()-lastAct<4000)return;
-  try{S=await (await fetch(API)).json();if(!liveId&&S.matches[0])liveId=S.matches[0].id;view()}catch(e){}
+  if(!U||Date.now()-lastAct<4000||!$('#modal').classList.contains('hidden'))return;
+  try{S=await (await fetch(API)).json();S.matches=(S.matches||[]).filter(m=>!(m.teamA=='Tim A'&&m.status=='upcoming'));
+    const a=document.activeElement;if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&$('#v')&&$('#v').contains(a)){renderOv();return}view()}catch(e){}
 }
-(function poll(){load();setTimeout(poll,tab==='live'?3000:15000)})();
+(function poll(){load();setTimeout(poll,(tab==='live'||ovId)?3000:15000)})();
+
+// ---------- HELPERS ----------
+const jp=j=>{try{return JSON.parse(j)||[]}catch(e){return[]}};
+const rid=()=>Math.random().toString(36).slice(2,8);
+function sgHtml(e,q){q=String(q).split(',').pop().trim().toLowerCase();const ps=P(e),L=S.users.filter(u=>!ps.some(p=>p.u==u.id)&&(!q||u.name.toLowerCase().includes(q))).slice(0,14);
+  return L.map(u=>`<button class="g !py-1 !px-3 !text-xs" onclick="pickU('${e.id}','${u.id}')">+ ${esc(u.name)}</button>`).join('')||'<span class="text-xs text-zinc-500">Tidak ada saran. Ketik nama lalu tekan Daftarkan untuk menambah sebagai tamu.</span>'}
+function pickU(id,uid){const e=S.events.find(x=>x.id==id),u=S.users.find(x=>x.id==uid),a=P(e).slice();if(!u||a.some(p=>p.u==uid))return;a.push({id:rid(),n:u.name,u:u.id});setF(id,'players',a)}
+function addTo(b){const t=$('#ep'),n=b.textContent.trim(),a=t.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);if(!a.some(x=>x.toLowerCase()==n.toLowerCase()))a.push(n);t.value=a.join(', ')}
+const fn=n=>String(n).trim().split(/\s+/)[0];
+const tn=(m,c)=>(c&&c.trim())||m.map(x=>fn(x.n)).join(' & ');
+function fd(s){s=String(s||'');if(/^\d{4}-\d{2}-\d{2}$/.test(s))return new Date(s+'T00:00').toDateString();const d=new Date(s);if(isNaN(d))return s;const t=d.toTimeString().slice(0,5);return d.toDateString()+(t=='00:00'?'':' · '+t)}
+function toLocalInput(s){s=String(s||'');if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s))return s.slice(0,16);let d=/^\d{4}-\d{2}-\d{2}$/.test(s)?new Date(s+'T00:00'):new Date(s);if(isNaN(d))d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)}
+function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{})}
 
 // ---------- AUTH ----------
 function authView(){
@@ -62,18 +78,18 @@ function authView(){
   <div class="flex bg-zinc-900 rounded-lg p-1 text-sm font-bold">
    <button onclick="mode='login';authView()" class="flex-1 py-2 rounded-md ${mode=='login'?'bg-white text-black':'text-zinc-400'}">Masuk</button>
    <button onclick="mode='register';authView()" class="flex-1 py-2 rounded-md ${mode=='register'?'bg-white text-black':'text-zinc-400'}">Daftar</button></div>
-  <input id="an" class="i" placeholder="Nama"><input id="ae" type="email" class="i" placeholder="Email">
+  ${mode=='register'?'<input id="an" class="i" placeholder="Nama">':''}<input id="ae" type="email" class="i" placeholder="Email">
   <button id="ab" onclick="doAuth()" class="b w-full">${mode=='login'?'Masuk':'Daftar Sekarang'}</button></div></div>`;
 }
 async function doAuth(){
-  const name=$('#an').value.trim(),email=$('#ae').value.trim();
-  if(!name||!email)return toast('Nama & email wajib diisi');
+  const name=mode=='register'?$('#an').value.trim():'',email=$('#ae').value.trim();
+  if(!email||(mode=='register'&&!name))return toast(mode=='register'?'Nama & email wajib diisi':'Email wajib diisi');
   $('#ab').textContent='Memproses...';
   const r=await call(mode,{name,email});
   if(!r.ok){toast(r.error);$('#ab').textContent=mode=='login'?'Masuk':'Daftar Sekarang';return}
   U=r.user;localStorage.setItem('sahata_user',JSON.stringify(U));boot();
 }
-function logout(){localStorage.removeItem('sahata_user');U=null;boot()}
+function logout(){localStorage.removeItem('sahata_user');U=null;closeOv();boot()}
 
 // ---------- SHELL ----------
 function boot(){
@@ -87,29 +103,38 @@ function boot(){
   T.forEach(t=>$('#t-'+t[0]).innerHTML=`<span class="e">${t[1]}</span><span>${t[2]}</span>`);go(tab);load();
 }
 function go(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.className='flex flex-col sm:flex-row items-center sm:gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 '+(b.id=='t-'+t?'border-white text-white':'border-transparent text-zinc-400'));view()}
-function view(){if(!U||!$('#v'))return;({board,events,live,players,me})[tab]()}
+function view(){if(!U||!$('#v'))return;({board,events,live,players,me})[tab]();renderOv()}
 
-// ---------- LEADERBOARD ----------
+// ---------- RANKING (hanya user terdaftar; tamu tidak dihitung) ----------
+function rank(sp){
+  const T={};S.users.forEach(u=>T[u.id]={id:u.id,name:u.name,m:0,w:0,d:0,l:0,pt:0});
+  S.matches.filter(m=>m.status=='done'&&(sp=='all'||m.sport==sp)).forEach(m=>{const s=ST(m);if(!s)return;
+    [[0,m.memA],[1,m.memB]].forEach(([t,j])=>jp(j).forEach(x=>{const o=x.u&&T[x.u];if(!o)return;o.m++;if(s.w<0){o.d++;o.pt++}else if(s.w==t){o.w++;o.pt+=3}else o.l++}))});
+  return Object.values(T).sort((a,b)=>b.pt-a.pt||b.w-a.w||a.name.localeCompare(b.name))}
 function board(){
-  const L=S.players.filter(p=>sport=='all'||p.sport==sport||p.sport=='all').sort((a,b)=>b.points-a.points);
+  const L=rank(sport);
   $('#v').innerHTML=`<div class="c p-6 bg-gradient-to-r from-zinc-900 to-black"><h1 class="text-2xl sm:text-4xl font-black uppercase">Ranking Kerabat & Komunitas</h1>
-  <p class="text-zinc-400 text-sm mt-1">Padel, Bulu Tangkis, dan Tenis dalam satu klasemen.</p></div>
+  <p class="text-zinc-400 text-sm mt-1">Menang 3 poin · Seri 1 · Kalah 0. Hanya pengguna terdaftar yang dihitung (tamu tidak).</p></div>
   <div class="flex gap-2 overflow-x-auto">${['all','padel','badminton','tennis'].map(s=>`<button onclick="sport='${s}';board()" class="${sport==s?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'} px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap">${s=='all'?'Semua':SPORT[s]}</button>`).join('')}</div>
   <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr>
-  <th class="p-3 text-center">#</th><th class="p-3">Atlet</th><th class="p-3 text-center">Main</th><th class="p-3 text-center">Menang</th><th class="p-3 text-center">Kalah</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
-  ${L.map((p,i)=>`<tr><td class="p-3 text-center font-black ${i==0?'text-amber-400':'text-zinc-400'}">${i==0?'👑':i+1}</td>
-  <td class="p-3 font-bold">${esc(p.name)} <span class="text-[10px] uppercase bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded text-zinc-400">${SPORT[p.sport]||p.sport}</span></td>
-  <td class="p-3 text-center">${p.matches}</td><td class="p-3 text-center text-emerald-400 font-bold">${p.wins}</td><td class="p-3 text-center text-red-400 font-bold">${p.losses}</td>
-  <td class="p-3 text-right font-black">${p.points}</td></tr>`).join('')||'<tr><td colspan=6 class="p-8 text-center text-zinc-500">Belum ada atlet</td></tr>'}</tbody></table></div>`;
+  <th class="p-3 text-center">#</th><th class="p-3">Atlet</th><th class="p-3 text-center">Main</th><th class="p-3 text-center">Menang</th><th class="p-3 text-center">Seri</th><th class="p-3 text-center">Kalah</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
+  ${L.map((p,i)=>`<tr><td class="p-3 text-center font-black ${i==0&&p.pt?'text-amber-400':'text-zinc-400'}">${i==0&&p.pt?'👑':i+1}</td>
+  <td class="p-3 font-bold">${esc(p.name)}</td><td class="p-3 text-center">${p.m}</td><td class="p-3 text-center text-emerald-400 font-bold">${p.w}</td><td class="p-3 text-center">${p.d}</td><td class="p-3 text-center text-red-400 font-bold">${p.l}</td>
+  <td class="p-3 text-right font-black">${p.pt}</td></tr>`).join('')||'<tr><td colspan=7 class="p-8 text-center text-zinc-500">Belum ada atlet</td></tr>'}</tbody></table></div>`;
 }
 
 // ---------- RULES ----------
 const R=m=>{try{return JSON.parse(m.rule)}catch(e){return{t:m.sport}}};
 const ST=m=>{try{return JSON.parse(m.st)}catch(e){return null}};
+const isFix=r=>r.t=='padel'&&r.fmt&&r.fmt!='single'&&r.partner=='fix';
+const P=e=>jp(e.players).map(x=>typeof x=='string'?{id:x,n:x,u:''}:x);
+const TM=e=>jp(e.teams);
+const FMT={single:'Pertandingan bebas',americano:'Americano',mexicano:'Mexicano'};
 const fresh=()=>({p:[0,0],g:[0,0],s:[0,0],d:0,w:-1});
-function rl(r){return r.t=='padel'?`Padel · ${r.n} game · ${r.golden?'Golden point':'Advantage'}`:r.t=='tennis'?(r.sets==1?'Tenis · 1 set (6 game)':`Tenis · Best of ${r.sets} set`):'Bulu Tangkis · langsung 21'}
+const snap=s=>{const c=JSON.parse(JSON.stringify(s));delete c.h;delete c.prev;return c};
+function rl(r){return r.t=='padel'?`Padel · ${FMT[r.fmt||'single']}${r.fmt&&r.fmt!='single'?(r.partner=='fix'?' · partner tetap':' · partner acak'):''} · ${r.n} game · ${r.golden?'Golden point':'Advantage'}`:r.t=='tennis'?(r.sets==1?'Tenis · 1 set (6 game)':`Tenis · Best of ${r.sets} set`):'Bulu Tangkis · langsung 21'}
 function step(r,s,t){
-  s=JSON.parse(JSON.stringify(s));delete s.prev;const o=1-t;
+  s=snap(s);const o=1-t;
   if(r.t=='badminton'){s.p[t]++;if(s.p[t]>=21){s.d=1;s.w=t}return s}
   s.p[t]++;
   const gw=(r.t=='padel'&&r.golden)?s.p[t]>=4:(s.p[t]>=4&&s.p[t]-s.p[o]>=2);
@@ -121,101 +146,237 @@ function step(r,s,t){
 function tp(p,t){const a=p[t],b=p[1-t];if(a>=3&&b>=3)return a>b?'AD':'40';return['0','15','30','40'][a]}
 function sm(m){const r=R(m),s=ST(m);if(!s)return'-';const x=r.t=='badminton'?s.p:r.t=='padel'?s.g:s.s;return x[0]+' - '+x[1]}
 
+// ---------- AMERICANO / MEXICANO ----------
+function unitsOf(e){
+  const fix=isFix(R(e)),ps=P(e);
+  return fix?TM(e).map(t=>{const m=[ps.find(p=>p.id==t.a),ps.find(p=>p.id==t.b)].filter(Boolean);return{k:[t.a,t.b].sort().join('+'),m,nm:tn(m,t.t),ok:m.length==2}}).filter(u=>u.ok)
+    :ps.map(p=>({k:p.id,m:[p],nm:p.n}))}
+function stand(e){
+  const fix=isFix(R(e)),T={},nw=(k,n)=>({k,n,m:0,w:0,d:0,l:0,pt:0,gd:0});
+  unitsOf(e).forEach(u=>T[u.k]=nw(u.k,u.nm));
+  S.matches.filter(x=>x.eventId==e.id&&x.status=='done').forEach(m=>{const s=ST(m);if(!s)return;
+    [[0,jp(m.memA),m.teamA],[1,jp(m.memB),m.teamB]].forEach(([t,mm,tm])=>{if(!mm.length)return;
+      (fix?[[mm.map(x=>x.i).sort().join('+'),tm]]:mm.map(x=>[x.i,x.n])).forEach(([k,n])=>{const o=T[k]||(T[k]=nw(k,n));o.m++;o.gd+=(s.g?s.g[t]-s.g[1-t]:0);
+        if(s.w<0){o.d++;o.pt++}else if(s.w==t){o.w++;o.pt+=3}else o.l++})})});
+  return Object.values(T).sort((a,b)=>b.pt-a.pt||b.gd-a.gd)}
+function gen(e){
+  const r=R(e),fix=isFix(r),per=fix?2:4,us=unitsOf(e),nm=Math.min(+r.courts||1,Math.floor(us.length/per));if(nm<1)return null;
+  const M=S.matches.filter(m=>m.eventId==e.id),key=(a,b)=>[a,b].sort().join('|'),pc={},oc={},cnt={},bump=(o,k)=>o[k]=(o[k]||0)+1;
+  us.forEach(u=>cnt[u.k]=0);
+  const ks=mm=>fix?[mm.map(y=>y.i).sort().join('+')]:mm.map(y=>y.i);
+  M.forEach(m=>{const A=ks(jp(m.memA)),B=ks(jp(m.memB));if(!jp(m.memA).length||!jp(m.memB).length)return;A.concat(B).forEach(k=>cnt[k]=(cnt[k]||0)+1);
+    if(!fix){bump(pc,key(A[0],A[1]));bump(pc,key(B[0],B[1]))}A.forEach(a=>B.forEach(b=>bump(oc,key(a,b))))});
+  const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+  const act=sh(us).sort((a,b)=>(cnt[a.k]||0)-(cnt[b.k]||0)).slice(0,nm*per); // yang paling sedikit main didahulukan, sisanya istirahat
+  const mem=p=>({i:p.id,n:p.n,u:p.u||''});
+  const mkm=(A,B)=>{const ma=fix?A[0].m:A.map(u=>u.m[0]),mb=fix?B[0].m:B.map(u=>u.m[0]);
+    return{teamA:fix?A[0].nm:tn(ma),teamB:fix?B[0].nm:tn(mb),memA:ma.map(mem),memB:mb.map(mem),kA:A.map(u=>u.k),kB:B.map(u=>u.k)}};
+  const build=a=>{const o=[];for(let i=0;i<a.length;i+=per)o.push(fix?mkm([a[i]],[a[i+1]]):mkm([a[i],a[i+1]],[a[i+2],a[i+3]]));return o};
+  const clean=o=>o.map(({teamA,teamB,memA,memB})=>({teamA,teamB,memA,memB}));
+  if(r.fmt=='mexicano'&&M.some(m=>m.status=='done')){ // ikut klasemen: 1&4 vs 2&3
+    const rk=stand(e).map(x=>x.k),a=act.sort((x,y)=>rk.indexOf(x.k)-rk.indexOf(y.k));
+    if(fix)return clean(build(a));const o=[];for(let i=0;i<a.length;i+=4)o.push(mkm([a[i],a[i+3]],[a[i+1],a[i+2]]));return clean(o)}
+  let best,bc=1e9; // Americano / ronde 1 Mexicano: acak, hindari partner & lawan berulang
+  for(let k=0;k<300;k++){const o=build(sh(act));let c=0;
+    o.forEach(m=>{if(!fix)c+=10*((pc[key(m.kA[0],m.kA[1])]||0)+(pc[key(m.kB[0],m.kB[1])]||0));m.kA.forEach(a=>m.kB.forEach(b=>c+=oc[key(a,b)]||0))});
+    if(c<bc){bc=c;best=o}}
+  return clean(best)}
+async function newRound(id){
+  const e=S.events.find(x=>x.id==id),M=S.matches.filter(m=>m.eventId==id);
+  if(isFix(R(e))&&unitsOf(e).length<2)return toast('Buat minimal 2 tim dulu');
+  if(M.some(m=>m.status!='done')&&!confirm('Masih ada pertandingan belum selesai. Tetap buat ronde baru?'))return;
+  const o=gen(e);if(!o)return toast('Peserta kurang (min 4 orang / 2 tim)');
+  const rd=Math.max(0,...M.map(m=>+m.round||0))+1;
+  const r=await call('addRound',{id,round:rd,ms:JSON.stringify(o)});toast(r.ok?'Ronde '+rd+' dibuat':r.error);lastAct=0;load()}
+
 // ---------- EVENTS ----------
 function events(){
+  const e=evId&&S.events.find(x=>x.id==evId);if(e)return evDetail(e);
   $('#v').innerHTML=`<div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Event</h2><button onclick="evForm()" class="b">+ Event Baru</button></div>
   <div class="grid md:grid-cols-3 gap-4">${S.events.map(e=>`<div class="c p-5 space-y-2">
    <div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div><h3 class="font-extrabold text-lg">${esc(e.name)}</h3>
-   <p class="text-xs text-zinc-400">${esc(rl(R(e)))}<br>📍 ${esc(e.location)} · ${esc(e.date)}</p>
-   <div class="flex justify-between pt-3 border-t border-zinc-900 text-xs font-bold"><button onclick="go('live')">Buka Live →</button>
+   <p class="text-xs text-zinc-400">${esc(rl(R(e)))}<br>📍 ${esc(e.location)} · ${esc(fd(e.date))}<br>👥 ${P(e).length} peserta</p>
+   <div class="flex justify-between pt-3 border-t border-zinc-900 text-xs font-bold"><button class="text-orange-400" onclick="evId='${e.id}';events()">Buka & Gabung →</button>
    ${e.createdBy==U.id?`<button class="text-red-400" onclick="delEv('${e.id}')">Hapus</button>`:''}</div></div>`).join('')||'<p class="text-zinc-500">Belum ada event.</p>'}</div>`;
 }
-function evForm(){
-  modal(`<h3 class="font-black uppercase">Buat Event Baru</h3><input id="en" class="i" placeholder="Nama event">
-  <select id="es" class="i" onchange="rf()"><option value="padel">Padel</option><option value="badminton">Bulu Tangkis</option><option value="tennis">Tenis</option></select><div id="rf"></div>
-  <div class="grid grid-cols-2 gap-3"><input id="ed" type="date" class="i" value="${new Date().toISOString().slice(0,10)}"><input id="el" class="i" placeholder="Lokasi"></div>
-  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="saveEv()">Buat</button></div>`);rf();
+function evDetail(e){
+  const r=R(e),fmt=r.fmt||'single',fix=isFix(r),ps=P(e),tm=TM(e),own=e.createdBy==U.id,M=S.matches.filter(m=>m.eventId==e.id),joined=ps.some(p=>p.u==U.id);
+  const rs=[...new Set(M.map(m=>+m.round||0))].sort((a,b)=>a-b),sd=M.some(m=>m.status=='done')?stand(e):[],free=ps.filter(p=>!tm.some(t=>t.a==p.id||t.b==p.id));
+  $('#v').innerHTML=`<button class="text-xs font-bold text-zinc-400" onclick="evId=null;events()">← Semua event</button>
+  <div class="c p-5 space-y-2"><div class="flex justify-between gap-2"><div><div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div><h2 class="text-2xl font-black">${esc(e.name)}</h2></div>
+  ${own?`<button class="g !px-3 h-fit" onclick="evForm('${e.id}')">✎ Edit</button>`:''}</div>
+  <p class="text-xs text-zinc-400">${esc(rl(r))}<br>📍 ${esc(e.location)} · ${esc(fd(e.date))}</p></div>
+  <div class="c p-5 space-y-3"><div class="flex justify-between items-center gap-2"><h3 class="text-sm font-extrabold uppercase">Peserta (${ps.length})</h3>
+   <button class="${joined?'g':'b'}" onclick="joinSelf('${e.id}')">${joined?'Keluar dari event':'+ Gabung event'}</button></div>
+   <div class="flex flex-wrap gap-2">${ps.map((p,i)=>`<span class="bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1 text-xs font-semibold">${esc(p.n)}${p.u?'':' <span class="text-zinc-500">(tamu)</span>'}${own?` <button class="text-red-400 ml-1" onclick="rmPl('${e.id}',${i})">✕</button>`:''}</span>`).join('')||'<span class="text-xs text-zinc-500">Belum ada peserta</span>'}</div>
+   <div class="text-xs font-bold uppercase text-zinc-400">Pengguna terdaftar (ketuk untuk menambah)</div>
+   <div id="sg" class="flex flex-wrap gap-2">${sgHtml(e,'')}</div>
+   <input id="np" class="i" placeholder="Cari nama / ketik nama tamu (pisahkan koma)" oninput="$('#sg').innerHTML=sgHtml(S.events.find(x=>x.id=='${e.id}'),this.value)">
+   <button class="g w-full" onclick="addPl('${e.id}')">+ Daftarkan peserta</button>
+   <p class="text-xs text-zinc-500">Nama yang cocok dengan pengguna terdaftar masuk ranking utama. Selain itu tercatat sebagai tamu (tidak masuk ranking utama). Bisa ditambah kapan saja, termasuk saat event berlangsung.</p></div>
+  ${fix?`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Tim (${tm.length})</h3>
+   ${tm.map((t,i)=>{const m=[ps.find(p=>p.id==t.a),ps.find(p=>p.id==t.b)].filter(Boolean);return`<div class="flex justify-between text-sm bg-zinc-900/50 rounded-lg px-3 py-2"><b>${esc(tn(m,t.t))}</b>${own?`<button class="text-red-400" onclick="rmTeam('${e.id}',${i})">✕</button>`:''}</div>`}).join('')||'<p class="text-xs text-zinc-500">Belum ada tim</p>'}
+   <div class="grid grid-cols-2 gap-2"><select id="ta1" class="i"><option value="">Pemain 1</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select><select id="ta2" class="i"><option value="">Pemain 2</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select></div>
+   <input id="tnm" class="i" placeholder="Nama tim (opsional, default nama depan)"><button class="g w-full" onclick="mkTeam('${e.id}')">+ Buat tim</button></div>`:''}
+  ${fmt=='single'?`<button class="b w-full !py-4" onclick="newForm('${e.id}')">▶ Mulai Pertandingan</button>`
+   :`<button class="b w-full !py-4" onclick="newRound('${e.id}')">▶ Buat Ronde ${rs.length?Math.max(...rs)+1:1}${fmt=='mexicano'&&sd.length?' (urut klasemen)':''}</button>`}
+  ${sd.length?`<div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr><th class="p-3">#</th><th class="p-3">${fix?'Tim':'Pemain'}</th><th class="p-3 text-center">M</th><th class="p-3 text-center">W</th><th class="p-3 text-center">D</th><th class="p-3 text-center">L</th><th class="p-3 text-center">+/-</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
+   ${sd.map((x,i)=>`<tr><td class="p-3 font-black">${i+1}</td><td class="p-3 font-bold">${esc(x.n)}</td><td class="p-3 text-center">${x.m}</td><td class="p-3 text-center text-emerald-400">${x.w}</td><td class="p-3 text-center">${x.d}</td><td class="p-3 text-center text-red-400">${x.l}</td><td class="p-3 text-center">${x.gd}</td><td class="p-3 text-right font-black">${x.pt}</td></tr>`).join('')}</tbody></table></div>`:''}
+  ${rs.map(rd=>`<div class="space-y-2"><h3 class="text-xs font-bold uppercase text-zinc-400">${rd?'Ronde '+rd:'Pertandingan'}</h3>
+   ${M.filter(m=>(+m.round||0)==rd).map(m=>`<div onclick="openM('${m.id}')" class="c p-3 cursor-pointer flex justify-between items-center gap-2"><div class="min-w-0"><div class="text-[10px] text-zinc-500">${m.court?'Lapangan '+esc(m.court):''}</div><div class="text-sm font-bold truncate">${esc(m.teamA)} <span class="text-zinc-500">vs</span> ${esc(m.teamB)}</div></div>
+   <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`:`<div class="font-black">${sm(m)}</div>`}</div></div>`).join('')}</div>`).join('')}`;
 }
-function rf(){const s=$('#es').value;$('#rf').innerHTML=s=='padel'?`<div class="grid grid-cols-2 gap-3"><select id="rn" class="i"><option value="4">Best of 4 game</option><option value="5">Best of 5 game</option></select><select id="rg" class="i"><option value="0">Deuce biasa</option><option value="1">Golden point</option></select></div>`:s=='tennis'?`<select id="rs" class="i"><option value="1">1 set (cari 6 game)</option><option value="3">Best of 3 set</option><option value="5">Best of 5 set</option></select>`:'<p class="text-xs text-zinc-400">Bulu tangkis: langsung 21 poin.</p>'}
+async function setF(id,field,val){const r=await call('setField',{id,field,val:JSON.stringify(val)});toast(r.ok?'Tersimpan':r.error);lastAct=0;load()}
+function addPl(id){
+  const e=S.events.find(x=>x.id==id),a=P(e).slice(),v=$('#np').value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+  if(!v.length)return toast('Isi nama dulu');
+  v.forEach(n=>{const u=S.users.find(x=>x.name.toLowerCase()==n.toLowerCase());
+    if(a.some(p=>p.n.toLowerCase()==n.toLowerCase()||(u&&p.u==u.id)))return;a.push({id:rid(),n:u?u.name:n,u:u?u.id:''})});
+  setF(id,'players',a)}
+function joinSelf(id){
+  const e=S.events.find(x=>x.id==id),a=P(e).slice(),i=a.findIndex(p=>p.u==U.id);
+  if(i>=0){if(!confirm('Keluar dari event ini?'))return;const pid=a[i].id;a.splice(i,1);setF(id,'players',a);const t=TM(e).filter(x=>x.a!=pid&&x.b!=pid);if(t.length!=TM(e).length)setF(id,'teams',t);return}
+  const g=a.findIndex(p=>p.n.toLowerCase()==U.name.toLowerCase());
+  if(g>=0)a[g].u=U.id;else a.push({id:rid(),n:U.name,u:U.id});
+  setF(id,'players',a)}
+function rmPl(id,i){const e=S.events.find(x=>x.id==id),a=P(e).slice();if(!confirm('Hapus '+a[i].n+'?'))return;const pid=a[i].id;a.splice(i,1);setF(id,'players',a);const t=TM(e).filter(x=>x.a!=pid&&x.b!=pid);if(t.length!=TM(e).length)setF(id,'teams',t)}
+function mkTeam(id){const e=S.events.find(x=>x.id==id),a=$('#ta1').value,b=$('#ta2').value;if(!a||!b||a==b)return toast('Pilih 2 pemain berbeda');setF(id,'teams',TM(e).concat([{a,b,t:$('#tnm').value.trim()}]))}
+function rmTeam(id,i){const e=S.events.find(x=>x.id==id),t=TM(e).slice();t.splice(i,1);setF(id,'teams',t)}
+function evForm(id){
+  ED=id?S.events.find(x=>x.id==id):null;const d=ED?R(ED):{t:'padel',fmt:'single',partner:'mix',n:4,golden:1,courts:1},sel=(a,b)=>a==b?'selected':'';
+  modal(`<h3 class="font-black uppercase">${ED?'Edit Event':'Buat Event Baru'}</h3><input id="en" class="i" placeholder="Nama event" value="${esc(ED?ED.name:'')}">
+  <select id="es" class="i" onchange="rf()" ${ED?'disabled':''}><option value="padel" ${sel(d.t,'padel')}>Padel</option><option value="badminton" ${sel(d.t,'badminton')}>Bulu Tangkis</option><option value="tennis" ${sel(d.t,'tennis')}>Tenis</option></select><div id="rf"></div>
+  <div class="grid grid-cols-2 gap-3"><input id="ed" type="datetime-local" class="i" value="${toLocalInput(ED?ED.date:'')}"><input id="el" class="i" placeholder="Lokasi" value="${esc(ED?ED.location:'')}"></div>
+  ${ED?'<p class="text-xs text-zinc-500">Perubahan aturan berlaku untuk pertandingan yang belum dimulai.</p>':`<textarea id="ep" class="i" rows="2" placeholder="Peserta awal (opsional). Ketuk nama di bawah, atau ketik nama tamu dipisah koma"></textarea><div class="flex flex-wrap gap-2">${S.users.map(u=>`<button type="button" class="g !py-1 !px-3 !text-xs" onclick="addTo(this)">${esc(u.name)}</button>`).join('')}</div>`}
+  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="saveEv()">${ED?'Simpan':'Buat'}</button></div>`);rf();
+}
+function rf(){
+  const s=$('#es').value,d=ED?R(ED):{},sel=(a,b)=>a==b?'selected':'';
+  $('#rf').innerHTML=s=='padel'?`<div class="grid grid-cols-2 gap-3">
+   <select id="rm" class="i"><option value="single" ${sel(d.fmt,'single')}>Pertandingan bebas</option><option value="americano" ${sel(d.fmt,'americano')}>Americano</option><option value="mexicano" ${sel(d.fmt,'mexicano')}>Mexicano</option></select>
+   <select id="rp" class="i"><option value="mix" ${sel(d.partner,'mix')}>Partner acak (mix)</option><option value="fix" ${sel(d.partner,'fix')}>Partner tetap (fix)</option></select>
+   <select id="rn" class="i">${[4,5,6,8].map(n=>`<option value="${n}" ${sel(d.n,n)}>Best of ${n} game</option>`).join('')}</select>
+   <select id="rg" class="i"><option value="1" ${d.golden==0?'':'selected'}>Golden point</option><option value="0" ${d.golden==0?'selected':''}>Deuce biasa (advantage)</option></select>
+   <input id="rc" type="number" min="1" max="10" class="i" placeholder="Jumlah lapangan" value="${d.courts||1}"></div>
+   <p class="text-xs text-zinc-500">Americano/Mexicano: sistem membuat ronde otomatis. Pertandingan bebas: Anda pilih sendiri pemainnya.</p>`
+  :s=='tennis'?`<select id="rs" class="i"><option value="1" ${sel(d.sets,1)}>1 set (cari 6 game)</option><option value="3" ${sel(d.sets,3)}>Best of 3 set</option><option value="5" ${sel(d.sets,5)}>Best of 5 set</option></select>`:'<p class="text-xs text-zinc-400">Bulu tangkis: langsung 21 poin.</p>'}
 async function saveEv(){
-  const sp=$('#es').value,rule=sp=='padel'?{t:'padel',n:+$('#rn').value,golden:+$('#rg').value}:sp=='tennis'?{t:'tennis',sets:+$('#rs').value}:{t:'badminton'};
+  const sp=$('#es').value,rule=sp=='padel'?{t:'padel',fmt:$('#rm').value,partner:$('#rp').value,n:+$('#rn').value,golden:+$('#rg').value,courts:Math.max(1,+$('#rc').value||1)}:sp=='tennis'?{t:'tennis',sets:+$('#rs').value}:{t:'badminton'};
   const d={name:$('#en').value.trim(),sport:sp,date:$('#ed').value,location:$('#el').value.trim(),rule:JSON.stringify(rule)};
   if(!d.name||!d.location)return toast('Lengkapi nama & lokasi');
-  closeM();toast('Menyimpan...');const r=await call('createEvent',d);toast(r.ok?'Event dibuat':r.error);lastAct=0;load();
+  if(ED){d.id=ED.id;closeM();toast('Menyimpan...');const r=await call('updateEvent',d);toast(r.ok?'Event diperbarui':r.error);lastAct=0;load();return}
+  const a=[];($('#ep').value||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>{const u=S.users.find(x=>x.name.toLowerCase()==n.toLowerCase());
+    if(a.some(p=>p.n.toLowerCase()==n.toLowerCase()))return;a.push({id:rid(),n:u?u.name:n,u:u?u.id:''})});
+  d.players=JSON.stringify(a);
+  toast('Menyimpan...',20000);const r=await call('createEvent',d);if(!r.ok)return toast(r.error||'Gagal menyimpan');closeM();toast('Event dibuat');evId=r.id;tab='events';go('events');lastAct=0;load();
 }
-async function delEv(id){if(!confirm('Hapus event ini?'))return;const r=await call('deleteEvent',{id});toast(r.ok?'Dihapus':r.error);lastAct=0;load()}
+async function delEv(id){if(!confirm('Hapus event ini?'))return;const r=await call('deleteEvent',{id});toast(r.ok?'Dihapus':r.error);evId=null;lastAct=0;load()}
+
+// ---------- MULAI PERTANDINGAN ----------
+const refSel=()=>`<label class="block text-xs font-bold uppercase text-zinc-400">Wasit (satu-satunya yang bisa ubah skor)</label><select id="rw" class="i"><option value="">Pilih wasit...</option>${S.users.map(u=>`<option value="${u.id}">${esc(u.name)}${u.id==U.id?' (saya)':''}</option>`).join('')}</select>`;
+function newForm(eid){
+  const e=S.events.find(x=>x.id==eid),ps=P(e),r=R(e);
+  if(ps.length<2)return toast('Daftarkan peserta dulu (min 2 orang)');
+  const opts=ph=>`<option value="">${ph}</option>`+ps.map(p=>`<option value="${p.id}">${esc(p.n)}${p.u?'':' (tamu)'}</option>`).join(''),o1=opts('Pilih pemain'),o2=opts(r.t=='padel'?'Pilih pemain':'Pemain 2 (opsional)');
+  modal(`<h3 class="font-black uppercase">Mulai Pertandingan</h3><p class="text-xs text-zinc-400">${esc(rl(r))}</p>
+  <div class="text-xs font-bold uppercase text-orange-400">Tim A</div><div class="grid grid-cols-2 gap-2"><select id="a1" class="i">${o1}</select><select id="a2" class="i">${o2}</select></div><input id="na" class="i" placeholder="Nama tim (opsional)">
+  <div class="text-xs font-bold uppercase text-orange-400">Tim B</div><div class="grid grid-cols-2 gap-2"><select id="b1" class="i">${o1}</select><select id="b2" class="i">${o2}</select></div><input id="nb" class="i" placeholder="Nama tim (opsional)">
+  ${refSel()}<div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="doNew('${eid}')">▶ Mulai</button></div>`);
+}
+async function doNew(eid){
+  const e=S.events.find(x=>x.id==eid),r=R(e),ps=P(e),ids=(a,b)=>[$(a).value,$(b).value].filter(Boolean);
+  const A=ids('#a1','#a2'),B=ids('#b1','#b2'),all=A.concat(B),ref=$('#rw').value;
+  if(!A.length||!B.length)return toast('Pilih pemain kedua tim');
+  if(new Set(all).size!=all.length)return toast('Ada pemain yang dipilih dua kali');
+  if(r.t=='padel'&&(A.length<2||B.length<2))return toast('Padel: tiap tim 2 pemain');
+  if(!ref)return toast('Pilih wasit dulu');
+  const mm=l=>l.map(i=>{const p=ps.find(x=>x.id==i);return{i:p.id,n:p.n,u:p.u||''}}),ma=mm(A),mb=mm(B);
+  closeM();const x=await call('newMatch',{id:eid,teamA:tn(ma,$('#na').value),teamB:tn(mb,$('#nb').value),memA:JSON.stringify(ma),memB:JSON.stringify(mb),refUid:ref,st:JSON.stringify(fresh())});
+  if(!x.ok)return toast(x.error);lastAct=0;await load();openM(x.id)}
+function startForm(id){
+  const m=S.matches.find(x=>x.id==id);
+  modal(`<h3 class="font-black uppercase">Mulai Pertandingan</h3><p class="font-bold">${esc(m.teamA)} <span class="text-zinc-500">vs</span> ${esc(m.teamB)}</p><p class="text-xs text-zinc-400">${esc(rl(R(m)))}</p>${refSel()}
+  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="doStart('${id}')">▶ Mulai</button></div>`);
+}
+async function doStart(id){
+  const ref=$('#rw').value;if(!ref)return toast('Pilih wasit dulu');
+  closeM();const r=await call('start',{id,refUid:ref,st:JSON.stringify(fresh())});
+  if(!r.ok)return toast(r.error);lastAct=0;await load();openM(id)}
 
 // ---------- LIVE ----------
 const prevSc={};
 const badge=m=>m.status=='live'?'<span class="text-[10px] font-bold text-red-400 flex items-center gap-1.5"><span class="relative flex h-2 w-2"><span class="animate-ping absolute h-full w-full rounded-full bg-red-500 opacity-75"></span><span class="relative rounded-full h-2 w-2 bg-red-500"></span></span>LIVE</span>':m.status=='done'?'<span class="text-[10px] font-bold text-emerald-400">SELESAI</span>':'<span class="text-[10px] font-bold text-zinc-400">MENUNGGU</span>';
 function live(){
-  const M=S.matches,m=M.find(x=>x.id==liveId)||M[0];
-  $('#v').innerHTML=`<div class="grid lg:grid-cols-4 gap-4"><div class="space-y-2 lg:max-h-[600px] overflow-y-auto">
-  <h3 class="text-xs font-bold uppercase text-zinc-400">Pertandingan</h3>
-  ${M.map(x=>`<div onclick="liveId='${x.id}';live()" class="c p-3 cursor-pointer ${x.id==(m&&m.id)?'!border-orange-500':''}"><div class="flex justify-between items-center"><div class="text-xs font-bold truncate">${esc(x.eventName)}</div>${badge(x)}</div><div class="text-xs text-zinc-400 truncate">${esc(x.teamA)} vs ${esc(x.teamB)}</div></div>`).join('')||'<p class="text-zinc-500 text-sm">Belum ada pertandingan. Buat event dulu.</p>'}</div>
-  <div class="lg:col-span-3">${m?board2(m):''}</div></div>`;
+  const rk=m=>m.status=='live'?0:m.status=='upcoming'?1:2,M=S.matches.slice().reverse().sort((a,b)=>rk(a)-rk(b));
+  $('#v').innerHTML=`<h2 class="text-2xl font-black uppercase">Pertandingan</h2><p class="text-xs text-zinc-400">Ketuk pertandingan untuk membuka scoreboard layar penuh.</p>
+  <div class="grid md:grid-cols-2 gap-3">${M.map(x=>`<div onclick="openM('${x.id}')" class="c p-4 cursor-pointer ${x.status=='live'?'livecard':''}"><div class="flex justify-between items-center"><div class="text-xs font-bold truncate">${esc(x.eventName)}${x.round?` · R${esc(x.round)}`:''}${x.court?` · L${esc(x.court)}`:''}</div>${badge(x)}</div>
+  <div class="font-bold truncate mt-1">${esc(x.teamA)} <span class="text-zinc-500">vs</span> ${esc(x.teamB)}</div>${x.status=='upcoming'?'':`<div class="text-2xl font-black">${sm(x)}</div>`}</div>`).join('')||'<p class="text-zinc-500 text-sm">Belum ada pertandingan. Buka event lalu mulai pertandingan.</p>'}</div>`;
 }
-function board2(m){
-  const r=R(m),s=ST(m)||fresh(),mine=m.refereeUid==U.id,bd=r.t=='badminton';
-  if(m.status=='upcoming')return `<div class="c p-8 text-center space-y-4"><div class="text-xs font-bold text-orange-400 uppercase">${esc(m.eventName)}</div><h3 class="text-xl font-black">${esc(m.teamA)} vs ${esc(m.teamB)}</h3><p class="text-sm text-zinc-400">${esc(rl(r))}</p><button class="b !py-4" onclick="startForm('${m.id}')">▶ Mulai Pertandingan</button></div>`;
+function openM(id){ovId=id;liveId=id;renderOv()}
+function closeOv(){ovId=null;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});renderOv()}
+function renderOv(){
+  const o=$('#ov'),m=ovId&&S.matches.find(x=>x.id==ovId);
+  if(!m){o.classList.add('hidden');o.innerHTML='';document.body.style.overflow='';return}
+  o.classList.remove('hidden');document.body.style.overflow='hidden';o.innerHTML=sbHtml(m);
+}
+function sbHtml(m){
+  const r=R(m),s=ST(m)||fresh(),mine=m.refereeUid==U.id,bd=r.t=='badminton',up=m.status=='upcoming',hist=(s.h||[]).length;
+  const head=`<div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2 min-w-0"><button class="g !px-3" onclick="closeOv()">✕</button><div class="min-w-0"><div class="text-[11px] font-bold text-orange-400 uppercase truncate">${esc(m.eventName)}${m.round?' · Ronde '+esc(m.round):''}${m.court?' · Lapangan '+esc(m.court):''}</div><div class="text-xs text-zinc-400 truncate">${esc(rl(r))}</div></div></div>
+   <div class="flex items-center gap-2 shrink-0">${badge(m)}${mine&&!up&&hist?`<button class="g !px-3" onclick="un('${m.id}')">↶ Undo</button>`:''}${mine&&!up?`<button class="g !px-3" onclick="fixForm('${m.id}')">✎ Koreksi</button>`:''}<button class="g !px-3" onclick="fs()">⛶</button></div></div>`;
+  const wrap=b=>`<div class="h-full flex flex-col gap-3 p-3" style="padding-top:max(.75rem,env(safe-area-inset-top));padding-bottom:max(.75rem,env(safe-area-inset-bottom))">${head}${b}</div>`;
+  if(up)return wrap(`<div class="flex-1 flex flex-col items-center justify-center gap-5 text-center"><h3 class="font-black" style="font-size:min(8vw,8vh)">${esc(m.teamA)}<br><span class="text-zinc-500 text-base">vs</span><br>${esc(m.teamB)}</h3><button class="b !py-4 !px-10 text-lg" onclick="startForm('${m.id}')">▶ Mulai Pertandingan</button><p class="text-xs text-zinc-500">Pilih wasit dulu sebelum skor bisa berjalan.</p></div>`);
   const side=t=>{const key=m.id+t,v=JSON.stringify([s.p[t],s.g[t],s.s[t]]),pop=prevSc[key]&&prevSc[key]!=v?'pop':'';prevSc[key]=v;
-   return `<div class="bg-zinc-900/60 border ${s.w==t?'border-emerald-500':'border-zinc-800'} p-4 sm:p-5 rounded-2xl text-center space-y-2">
-   <div class="text-xs font-bold uppercase text-orange-400">Tim ${t?'B':'A'}</div><h4 class="font-extrabold truncate text-sm sm:text-base">${esc(t?m.teamB:m.teamA)}</h4>
-   <div class="${pop} text-6xl sm:text-8xl font-black py-1">${bd?s.p[t]:tp(s.p,t)}</div>
-   ${bd?'':`<div class="text-xs text-zinc-400">Game <b class="text-white text-base">${s.g[t]}</b>${r.t=='tennis'?` · Set <b class="text-white text-base">${s.s[t]}</b>`:''}</div>`}
-   ${mine&&!s.d?`<button class="b w-full !py-4 text-base" onclick="pt('${m.id}',${t})">+ Poin</button>`:''}</div>`};
-  const dz=!bd&&!s.d&&s.p[0]>=3&&s.p[1]>=3?`<div class="text-center text-xs font-black text-amber-400 animate-pulse">${r.golden?'GOLDEN POINT':'DEUCE'}</div>`:'';
-  const fin=s.d?`<div class="text-center font-black text-emerald-400 uppercase">🏁 Selesai · ${s.w<0?'Seri':'Pemenang: '+esc(s.w?m.teamB:m.teamA)}</div>`:'';
-  return `<div id="sb" class="c p-4 sm:p-8 space-y-4 bg-zinc-950 ${m.status=='live'?'livecard':''}"><div class="flex flex-wrap justify-between items-center gap-2 border-b border-zinc-800 pb-3">
-   <div><span class="text-xs font-bold text-orange-400 uppercase">${esc(m.eventName)}</span><h3 class="text-sm font-bold text-zinc-300">${esc(rl(r))}</h3></div>
-   <div class="flex items-center gap-2">${badge(m)}${mine&&s.prev?`<button class="g !px-3" onclick="un('${m.id}')">↶</button>`:''}<button class="g !px-3" onclick="$('#sb').requestFullscreen&&$('#sb').requestFullscreen()">⛶</button></div></div>
-   ${dz}<div class="grid grid-cols-2 gap-3 sm:gap-4">${side(0)}${side(1)}</div>${fin}
-   <p class="text-xs text-zinc-500 text-center">Wasit: <b class="text-zinc-300">${esc(m.refereeName)}</b> · ${mine?'kamu bisa ubah skor':'mode penonton'}</p></div>`;
+   return `<div class="flex flex-col justify-between items-center text-center rounded-2xl border-2 ${s.w==t?'border-emerald-500':'border-zinc-800'} bg-zinc-900/60 p-3 min-h-0 min-w-0">
+   <div class="w-full min-w-0"><div class="text-xs font-bold uppercase text-orange-400">Tim ${t?'B':'A'}</div><div class="font-extrabold truncate" style="font-size:min(5vw,4.5vh)">${esc(t?m.teamB:m.teamA)}</div></div>
+   <div class="${pop} font-black leading-none" style="font-size:min(24vw,36vh)">${bd?s.p[t]:tp(s.p,t)}</div>
+   <div class="text-zinc-400" style="font-size:min(5vw,4.5vh)">${bd?'&nbsp;':`Game <b class="text-white">${s.g[t]}</b>${r.t=='tennis'?` · Set <b class="text-white">${s.s[t]}</b>`:''}`}</div>
+   ${mine&&!s.d?`<button class="b w-full mt-2" style="min-height:max(64px,16vh);font-size:min(6vw,5vh)" onclick="pt('${m.id}',${t})">+ Poin</button>`:''}</div>`};
+  const dz=!bd&&!s.d&&s.p[0]>=3&&s.p[1]>=3?`<div class="text-center text-xs font-black text-amber-400 animate-pulse">${r.golden?'GOLDEN POINT':'DEUCE'}</div>`:'',
+   fin=s.d?`<div class="text-center font-black text-emerald-400 uppercase">🏁 Selesai · ${s.w<0?'Seri':'Pemenang: '+esc(s.w?m.teamB:m.teamA)}</div>`:'';
+  return wrap(`${dz}${fin}<div class="flex-1 grid grid-cols-2 gap-3 min-h-0">${side(0)}${side(1)}</div><p class="text-xs text-zinc-500 text-center">Wasit: <b class="text-zinc-300">${esc(m.refereeName)}</b> · ${mine?'kamu bisa ubah skor':'mode penonton'}</p>`);
 }
-function startForm(id){
-  const m=S.matches.find(x=>x.id==id);
-  modal(`<h3 class="font-black uppercase">Mulai Pertandingan</h3><p class="text-xs text-zinc-400">${esc(rl(R(m)))}</p>
-  <datalist id="pl">${S.players.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist>
-  <input id="ta" list="pl" class="i" placeholder="Tim A (nama pemain)"><input id="tb" list="pl" class="i" placeholder="Tim B (nama pemain)">
-  <label class="block text-xs font-bold uppercase text-zinc-400">Wasit (pengubah skor)</label>
-  <select id="rw" class="i">${S.users.map(u=>`<option value="${u.id}" ${u.id==U.id?'selected':''}>${esc(u.name)}</option>`).join('')}</select>
-  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="doStart('${id}')">Mulai</button></div>`);
+async function push(m){lastAct=Date.now();view();const s=ST(m),r=await call('st',{id:m.id,st:m.st,done:s.d});if(!r.ok){toast(r.error);lastAct=0;load()}else lastAct=Date.now()-2500}
+function pt(id,t){const m=S.matches.find(x=>x.id==id),s=ST(m)||fresh();if(m.refereeUid!=U.id||s.d)return;const n=step(R(m),s,t);n.h=(s.h||[]).concat([snap(s)]).slice(-40);m.st=JSON.stringify(n);if(n.d)m.status='done';push(m)}
+function un(id){const m=S.matches.find(x=>x.id==id),s=ST(m);if(m.refereeUid!=U.id||!s||!(s.h||[]).length)return;const h=s.h.slice(),p=h.pop();p.h=h;m.st=JSON.stringify(p);m.status=p.d?'done':'live';push(m)}
+function fixForm(id){
+  const m=S.matches.find(x=>x.id==id),r=R(m),s=ST(m)||fresh(),bd=r.t=='badminton';
+  let pa=s.p[0],pb=s.p[1];if(!bd&&pa>=3&&pb>=3){const d=pa-pb;pa=3+Math.max(d,0);pb=3+Math.max(-d,0)}const pv=[pa,pb];
+  const pf=t=>bd?`<input id="fp${t}" type="number" min="0" class="i" value="${s.p[t]}">`:`<select id="fp${t}" class="i">${['0','15','30','40','AD'].map((x,i)=>`<option value="${i}" ${pv[t]==i?'selected':''}>${x}</option>`).join('')}</select>`;
+  const box=t=>`<div class="space-y-1"><div class="text-xs font-bold text-orange-400 uppercase truncate">${esc(t?m.teamB:m.teamA)}</div><label class="text-[10px] text-zinc-400 uppercase">Poin</label>${pf(t)}
+   ${bd?'':`<label class="text-[10px] text-zinc-400 uppercase">Game</label><input id="fg${t}" type="number" min="0" class="i" value="${s.g[t]}">`}
+   ${r.t=='tennis'?`<label class="text-[10px] text-zinc-400 uppercase">Set</label><input id="fs${t}" type="number" min="0" class="i" value="${s.s[t]}">`:''}</div>`;
+  modal(`<h3 class="font-black uppercase">Koreksi Skor</h3><p class="text-xs text-zinc-400">Atur skor langsung jika salah input (mis. poin masuk ke tim yang salah).</p><div class="grid grid-cols-2 gap-3">${box(0)}${box(1)}</div>
+  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="applyFix('${id}')">Simpan</button></div>`);
 }
-async function doStart(id){
-  const teamA=$('#ta').value.trim(),teamB=$('#tb').value.trim();if(!teamA||!teamB)return toast('Isi nama kedua tim');
-  const refUid=$('#rw').value;closeM();const r=await call('start',{id,teamA,teamB,refUid,st:JSON.stringify(fresh())});
-  toast(r.ok?'Pertandingan dimulai':r.error);lastAct=0;load();
-}
-async function push(m){lastAct=Date.now();live();const s=ST(m),r=await call('st',{id:m.id,st:m.st,done:s.d});if(!r.ok){toast(r.error);lastAct=0;load()}else lastAct=Date.now()-2500}
-function pt(id,t){const m=S.matches.find(x=>x.id==id),s=ST(m)||fresh();if(s.d)return;const n=step(R(m),s,t),b=JSON.parse(JSON.stringify(s));delete b.prev;n.prev=b;m.st=JSON.stringify(n);if(n.d)m.status='done';push(m)}
-function un(id){const m=S.matches.find(x=>x.id==id),s=ST(m);if(!s||!s.prev)return;m.st=JSON.stringify(s.prev);m.status='live';push(m)}
+function applyFix(id){
+  const m=S.matches.find(x=>x.id==id),r=R(m),s=ST(m)||fresh(),n=snap(s),v=k=>[+($('#'+k+'0')||{value:0}).value||0,+($('#'+k+'1')||{value:0}).value||0];
+  n.p=v('fp');if(r.t!='badminton')n.g=v('fg');if(r.t=='tennis')n.s=v('fs');n.d=0;n.w=-1;
+  if(r.t=='padel'){const N=+r.n,t=n.g[0]+n.g[1];if(n.g[0]*2>N||n.g[1]*2>N||t>=N){n.d=1;n.w=n.g[0]==n.g[1]?-1:n.g[0]>n.g[1]?0:1}}
+  else if(r.t=='tennis'){const need=Math.ceil(+r.sets/2);[0,1].forEach(t=>{if(n.s[t]>=need){n.d=1;n.w=t}})}
+  else if(Math.max(...n.p)>=21){n.d=1;n.w=n.p[0]>=n.p[1]?0:1}
+  n.h=(s.h||[]).concat([snap(s)]).slice(-40);m.st=JSON.stringify(n);m.status=n.d?'done':'live';closeM();push(m)}
 
-// ---------- PLAYERS ----------
+// ---------- ATLET ----------
 function players(){
-  $('#v').innerHTML=`<div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Atlet & Kerabat</h2><button class="b" onclick="plForm()">+ Pemain</button></div>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">${S.players.map(p=>`<div class="c p-4 space-y-3"><div class="flex items-center gap-3">
+  const L=rank('all');
+  $('#v').innerHTML=`<h2 class="text-2xl font-black uppercase">Atlet & Kerabat</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">${L.map(p=>`<div class="c p-4 space-y-3"><div class="flex items-center gap-3">
   <div class="w-11 h-11 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-black">${esc(p.name[0]||'?').toUpperCase()}</div>
-  <div class="overflow-hidden"><h4 class="font-bold text-sm truncate">${esc(p.name)}</h4><span class="text-[10px] uppercase font-bold text-orange-400">${SPORT[p.sport]||p.sport}</span></div></div>
-  <div class="grid grid-cols-3 text-center text-xs bg-zinc-900/50 rounded-xl p-2"><div><span class="block text-zinc-500">Main</span><b>${p.matches}</b></div><div><span class="block text-zinc-500">Menang</span><b class="text-emerald-400">${p.wins}</b></div><div><span class="block text-zinc-500">Poin</span><b>${p.points}</b></div></div></div>`).join('')}</div>`;
+  <div class="overflow-hidden"><h4 class="font-bold text-sm truncate">${esc(p.name)}</h4></div></div>
+  <div class="grid grid-cols-3 text-center text-xs bg-zinc-900/50 rounded-xl p-2"><div><span class="block text-zinc-500">Main</span><b>${p.m}</b></div><div><span class="block text-zinc-500">Menang</span><b class="text-emerald-400">${p.w}</b></div><div><span class="block text-zinc-500">Poin</span><b>${p.pt}</b></div></div></div>`).join('')}</div>`;
 }
-function plForm(){
-  modal(`<h3 class="font-black uppercase">Tambah Atlet</h3><input id="pn" class="i" placeholder="Nama lengkap">
-  <select id="ps" class="i"><option value="padel">Padel</option><option value="badminton">Bulu Tangkis</option><option value="tennis">Tenis</option><option value="all">Multi-Olahraga</option></select>
-  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="savePl()">Tambah</button></div>`);
-}
-async function savePl(){const name=$('#pn').value.trim();if(!name)return toast('Nama wajib');const sp=$('#ps').value;closeM();const r=await call('addPlayer',{name,sport:sp});toast(r.ok?'Atlet ditambahkan':r.error);lastAct=0;load()}
 
 // ---------- PROFILE ----------
 function me(){
-  const p=S.players.find(x=>x.name.toLowerCase()==U.name.toLowerCase())||{points:0,matches:0,wins:0};
-  const wr=+p.matches?Math.round(p.wins/p.matches*100):0;
-  const H=S.matches.filter(m=>(m.teamA+m.teamB).toLowerCase().includes(U.name.toLowerCase()));
+  const p=rank('all').find(x=>x.id==U.id)||{pt:0,m:0,w:0};
+  const wr=+p.m?Math.round(p.w/p.m*100):0;
+  const H=S.matches.filter(m=>jp(m.memA).concat(jp(m.memB)).some(x=>x.u==U.id)).reverse();
   $('#v').innerHTML=`<div class="c p-6 space-y-5"><div class="flex justify-between items-center gap-3"><div class="flex items-center gap-4">
   <div class="w-16 h-16 rounded-2xl bg-orange-500 text-black font-black text-2xl flex items-center justify-center">${esc(U.name[0]).toUpperCase()}</div>
   <div><h2 class="text-2xl font-black uppercase">${esc(U.name)}</h2><p class="text-xs text-zinc-400">${esc(U.email)}</p></div></div><button class="g" onclick="logout()">Keluar</button></div>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">${[['Total Poin',p.points,''],['Main',p.matches,''],['Menang',p.wins,'text-emerald-400'],['Rasio Menang',wr+'%','text-orange-400']].map(s=>`<div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4"><span class="text-xs text-zinc-400 uppercase font-bold">${s[0]}</span><div class="text-3xl font-black ${s[2]}">${s[1]}</div></div>`).join('')}</div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">${[['Total Poin',p.pt,''],['Main',p.m,''],['Menang',p.w,'text-emerald-400'],['Rasio Menang',wr+'%','text-orange-400']].map(s=>`<div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4"><span class="text-xs text-zinc-400 uppercase font-bold">${s[0]}</span><div class="text-3xl font-black ${s[2]}">${s[1]}</div></div>`).join('')}</div>
   <h3 class="text-sm font-extrabold uppercase">Riwayat Pertandingan Saya</h3>
-  ${H.map(m=>`<div class="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex justify-between items-center"><div><div class="text-xs text-zinc-400">${esc(m.eventName)}</div><div class="font-bold text-sm">${esc(m.teamA)} vs ${esc(m.teamB)}</div></div><div class="text-xl font-black">${sm(m)}</div></div>`).join('')||'<p class="text-center text-zinc-500 text-xs py-4">Belum ada pertandingan tercatat.</p>'}</div>`;
+  ${H.map(m=>`<div onclick="go('live');openM('${m.id}')" class="cursor-pointer bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex justify-between items-center"><div><div class="text-xs text-zinc-400">${esc(m.eventName)}</div><div class="font-bold text-sm">${esc(m.teamA)} vs ${esc(m.teamB)}</div></div><div class="text-xl font-black">${m.status=='upcoming'?'-':sm(m)}</div></div>`).join('')||'<p class="text-center text-zinc-500 text-xs py-4">Belum ada pertandingan tercatat.</p>'}</div>`;
 }
 boot();
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
