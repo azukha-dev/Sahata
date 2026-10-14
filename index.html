@@ -136,18 +136,17 @@ function rank(sp){
     :L.sort((a,b)=>pl(a,b)||b.pt-a.pt||b.gd-a.gd||b.w-a.w||a.name.localeCompare(b.name))}
 function board(){
   const L=rank(sport),all=sport=='all',pd=sport=='padel',sd=all||pd;
-  const info=all?'Urutan: persentase menang yang disesuaikan jumlah main, jadi pemain dengan sedikit pertandingan tidak langsung di puncak. Tanda * = kurang dari 3 pertandingan.'
-    :pd?'Menang 3 · Seri 1 · Kalah 0. Pembeda: selisih game (+/-), lalu jumlah menang.'
-    :sport=='tennis'?'Menang 3 · Kalah 0. Pembeda: selisih game (+/-), lalu jumlah menang.'
-    :'Menang 3 · Kalah 0. Pembeda: selisih poin (+/-), lalu jumlah menang.';
+  const info=all?'Urut: Menang % (disesuaikan jumlah main)'
+    :pd?'M 3 · S 1 · K 0 · Pembeda: selisih game'
+    :sport=='tennis'?'M 3 · K 0 · Pembeda: selisih game'
+    :'M 3 · K 0 · Pembeda: selisih poin';
   const tabs=[['all','Semua'],['padel','Padel'],['tennis','Tenis'],['badminton','Bulu Tangkis']];
-  $('#v').innerHTML=`<div class="c p-6 bg-gradient-to-r from-zinc-900 to-black"><h1 class="text-2xl sm:text-4xl font-black uppercase">Leaderboard Kerabat & Komunitas</h1>
-  <p class="text-zinc-400 text-sm mt-1">${info} Hanya pengguna terdaftar yang dihitung (tamu tidak).</p></div>
-  <div class="flex gap-2 overflow-x-auto">${tabs.map(t=>`<button onclick="sport='${t[0]}';board()" class="${sport==t[0]?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'} px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap">${t[1]}</button>`).join('')}</div>
+  $('#v').innerHTML=`<div class="c p-6 bg-gradient-to-r from-zinc-900 to-black"><h1 class="text-2xl sm:text-4xl font-black uppercase">Leaderboard SAHATA</h1></div>
+  <div class="flex gap-2 overflow-x-auto">${tabs.map(t=>`<button onclick="sport='${t[0]}';board()" class="${sport==t[0]?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'} px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap">${t[1]}</button>`).join('')}</div><div class="text-[11px] text-zinc-500 text-right -mb-2">${info}</div>
   <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr>
   <th class="p-3 text-center">#</th><th class="p-3">Atlet</th><th class="p-3 text-center">Main</th><th class="p-3 text-center">Menang</th>${sd?'<th class="p-3 text-center">Seri</th>':''}<th class="p-3 text-center">Kalah</th>${all?'<th class="p-3 text-right">Menang %</th>':'<th class="p-3 text-center">+/-</th><th class="p-3 text-right">Poin</th>'}</tr></thead><tbody class="divide-y divide-zinc-900">
   ${L.map((p,i)=>{const top=i==0&&p.m>0;return`<tr class="${p.m?'':'opacity-50'}"><td class="p-3 text-center font-black ${top?'text-amber-400':'text-zinc-400'}">${top?'👑':i+1}</td>
-  <td class="p-3 font-bold">${esc(p.name)}${all&&p.m>0&&p.m<3?' <span class="text-zinc-500">*</span>':''}</td><td class="p-3 text-center">${p.m}</td><td class="p-3 text-center text-emerald-400 font-bold">${p.w}</td>${sd?`<td class="p-3 text-center">${p.d}</td>`:''}<td class="p-3 text-center text-red-400 font-bold">${p.l}</td>
+  <td class="p-3 font-bold">${esc(p.name)}</td><td class="p-3 text-center">${p.m}</td><td class="p-3 text-center text-emerald-400 font-bold">${p.w}</td>${sd?`<td class="p-3 text-center">${p.d}</td>`:''}<td class="p-3 text-center text-red-400 font-bold">${p.l}</td>
   ${all?`<td class="p-3 text-right font-black">${p.m?Math.round(p.wr*100)+'%':'-'}</td>`:`<td class="p-3 text-center">${p.gd>0?'+':''}${p.gd}</td><td class="p-3 text-right font-black">${p.pt}</td>`}</tr>`}).join('')||`<tr><td colspan=8 class="p-8 text-center text-zinc-500">Belum ada atlet</td></tr>`}</tbody></table></div>`;
 }
 
@@ -226,7 +225,7 @@ async function newRound(id){
   const r=await call('addRound',{id,round:rd,ms:JSON.stringify(o)});toast(r.ok?'Ronde '+rd+' dibuat':r.error);lastAct=0;load()}
 
 // ---------- EVENTS ----------
-function events(){
+function eventsOld(){
   const e=evId&&S.events.find(x=>x.id==evId);
   if(e){try{return evDetail(e)}catch(err){console.error(err);toast('Gagal membuka event: '+err.message,6000);evId=null}}
   // ... sisa fungsi (daftar event) tetap sama
@@ -237,12 +236,12 @@ function events(){
    <div class="flex justify-between pt-3 border-t border-zinc-900 text-xs font-bold"><button class="text-orange-400" onclick="evId='${e.id}';events()">Open & Join →</button>
    ${e.createdBy==U.id?`<button class="text-red-400" onclick="delEv('${e.id}')">Hapus</button>`:''}</div></div>`).join('')||'<p class="text-zinc-500">Belum ada event.</p>'}</div>`;
 }
-function evDetail(e){
+function evDetailOld(e){
   const r=R(e),fmt=r.fmt||'single',fix=isFix(r),ps=P(e),tm=TM(e),own=e.createdBy==U.id,M=S.matches.filter(m=>m.eventId==e.id),joined=ps.some(p=>p.u==U.id);
   const rs=[...new Set(M.map(m=>+m.round||0))].sort((a,b)=>a-b),sd=M.some(m=>m.status=='done')?stand(e):[],free=ps.filter(p=>!tm.some(t=>t.a==p.id||t.b==p.id));
   $('#v').innerHTML=`<button class="text-xs font-bold text-zinc-400" onclick="evId=null;events()">← Semua event</button>
-  <div class="c p-5 space-y-2"><div class="flex justify-between gap-2"><div><div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div><h2 class="text-2xl font-black">${esc(e.name)}</h2></div>
-  ${own?`<button class="g !px-3 h-fit" onclick="evForm('${e.id}')">✎ Edit</button>`:''}</div>
+  <div class="c p-5 space-y-2"><div class="flex justify-between gap-2"><div><div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div>  ${fmt=='single'?`<button class="b w-full !py-4"</div>
+  ${own?`<div class="flex gap-2 h-fit"><button class="g !px-3" onclick="evForm('${e.id}')">✎ Edit</button><button class="${e.status=='done'?'g':'b'} !px-3" onclick="finishEv('${e.id}')">${e.status=='done'?'Buka lagi':'🏁 Finish Event'}</button></div>`:''}</div>
   <p class="text-xs text-zinc-400">${esc(rl(r))}<br>📍 ${esc(e.location)} · ${esc(fd(e.date))}</p></div>
   <div class="c p-5 space-y-3"><div class="flex justify-between items-center gap-2"><h3 class="text-sm font-extrabold uppercase">Peserta (${ps.length})</h3>
    <button class="${joined?'g':'b'}" onclick="joinSelf('${e.id}')">${joined?'Keluar dari event':'+ Join event'}</button></div>
@@ -256,7 +255,7 @@ function evDetail(e){
    ${tm.map((t,i)=>{const m=[ps.find(p=>p.id==t.a),ps.find(p=>p.id==t.b)].filter(Boolean);return`<div class="flex justify-between text-sm bg-zinc-900/50 rounded-lg px-3 py-2"><b>${esc(tn(m,t.t))}</b>${own?`<button class="text-red-400" onclick="rmTeam('${e.id}',${i})">✕</button>`:''}</div>`}).join('')||'<p class="text-xs text-zinc-500">Belum ada tim</p>'}
    <div class="grid grid-cols-2 gap-2"><select id="ta1" class="i"><option value="">Pemain 1</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select><select id="ta2" class="i"><option value="">Pemain 2</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select></div>
    <input id="tnm" class="i" placeholder="Nama tim (opsional, default nama depan)"><button class="g w-full" onclick="mkTeam('${e.id}')">+ Buat tim</button></div>`:''}
-  ${fmt=='single'?`<button class="b w-full !py-4" onclick="newForm('${e.id}')">▶ Mulai Pertandingan</button>`
+<h3 class="font-extrabold text-lg">${esc(e.name)}${e.status=='done'?' <span class="text-[10px] font-bold text-emerald-400 align-middle">FINISH</span>':''}</h3> onclick="newForm('${e.id}')">▶ Mulai Pertandingan</button>`
    :`<button class="b w-full !py-4" onclick="newRound('${e.id}')">▶ Buat Ronde ${rs.length?Math.max(...rs)+1:1}${fmt=='mexicano'&&sd.length?' (urut klasemen)':''}</button>`}
   ${sd.length?`<div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr><th class="p-3">#</th><th class="p-3">${fix?'Tim':'Pemain'}</th><th class="p-3 text-center">M</th><th class="p-3 text-center">W</th><th class="p-3 text-center">D</th><th class="p-3 text-center">L</th><th class="p-3 text-center">+/-</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
    ${sd.map((x,i)=>`<tr><td class="p-3 font-black">${i+1}</td><td class="p-3 font-bold">${esc(x.n)}</td><td class="p-3 text-center">${x.m}</td><td class="p-3 text-center text-emerald-400">${x.w}</td><td class="p-3 text-center">${x.d}</td><td class="p-3 text-center text-red-400">${x.l}</td><td class="p-3 text-center">${x.gd}</td><td class="p-3 text-right font-black">${x.pt}</td></tr>`).join('')}</tbody></table></div>`:''}
@@ -264,6 +263,81 @@ function evDetail(e){
    ${M.filter(m=>(+m.round||0)==rd).map(m=>`<div onclick="openM('${m.id}')" class="c p-3 cursor-pointer flex justify-between items-center gap-2"><div class="min-w-0"><div class="text-[10px] text-zinc-500">${m.court?'Lapangan '+esc(m.court):''}</div><div class="text-sm font-bold truncate">${esc(m.teamA)} <span class="text-zinc-500">vs</span> ${esc(m.teamB)}</div></div>
    <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`:`<div class="font-black">${sm(m)}</div>`}</div></div>`).join('')}</div>`).join('')}`;
 }
+
+let evTab=null;
+function evT(t){evTab=t;events()}
+function events(){
+  const e=evId&&S.events.find(x=>x.id==evId);
+  if(e){try{return evDetail(e)}catch(err){console.error(err);toast('Gagal membuka event: '+err.message,6000);evId=null}}
+  $('#v').innerHTML=`<div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Event</h2><button onclick="evForm()" class="b">+ Event Baru</button></div>
+  <div class="grid md:grid-cols-3 gap-4">${S.events.slice().reverse().map(e=>{
+    const M=S.matches.filter(m=>m.eventId==e.id),live=M.filter(m=>m.status=='live').length,done=e.status=='done';
+    return`<div onclick="evId='${e.id}';evTab=null;events()" class="c p-5 space-y-2 cursor-pointer hover:border-zinc-600 ${live?'livecard':''}">
+     <div class="flex justify-between items-center"><div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div>${live?'<span class="text-[10px] font-bold text-red-400">● LIVE</span>':done?'<span class="text-[10px] font-bold text-emerald-400">FINISH</span>':''}</div>
+     <h3 class="font-extrabold text-lg">${esc(e.name)}</h3>
+     <p class="text-xs text-zinc-400">${esc(rl(R(e)))}<br>📍 ${esc(e.location)} · ${esc(fd(e.date))}</p>
+     <div class="flex gap-4 text-xs text-zinc-300"><span>👥 ${P(e).length} peserta</span><span>🎾 ${M.length} pertandingan</span></div>
+     <div class="flex justify-between pt-3 border-t border-zinc-900 text-xs font-bold"><span class="text-orange-400">Buka detail →</span>
+     ${e.createdBy==U.id?`<button class="text-red-400" onclick="event.stopPropagation();delEv('${e.id}')">Hapus</button>`:''}</div></div>`}).join('')||'<p class="text-zinc-500">Belum ada event.</p>'}</div>`;
+}
+function evDetail(e){
+  const r=R(e),fmt=r.fmt||'single',fix=isFix(r),ps=P(e),tm=TM(e),own=e.createdBy==U.id,done=e.status=='done';
+  const M=S.matches.filter(m=>m.eventId==e.id),joined=ps.some(p=>p.u==U.id);
+  const nDone=M.filter(m=>m.status=='done').length,nLive=M.filter(m=>m.status=='live').length;
+  const rs=[...new Set(M.map(m=>+m.round||0))].sort((a,b)=>a-b),free=ps.filter(p=>!tm.some(t=>t.a==p.id||t.b==p.id));
+  const sd=nDone?stand(e):[],tb=evTab||(M.length?'main':'peserta');
+  const creator=(S.users.find(u=>u.id==e.createdBy)||{}).name||'-';
+  const stat=(l,v,c)=>`<div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center"><div class="text-[10px] text-zinc-400 uppercase font-bold">${l}</div><div class="text-xl font-black ${c||''}">${v}</div></div>`;
+  const tabBtn=(k,l)=>`<button onclick="evT('${k}')" class="flex-1 px-3 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap ${tb==k?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'}">${l}</button>`;
+  const row=(l,v)=>`<div class="flex justify-between gap-3 text-sm py-2 border-b border-zinc-900"><span class="text-zinc-400">${l}</span><span class="font-semibold text-right">${v}</span></div>`;
+  const scoring=r.t=='padel'?(+r.sets>0?(r.sets==1?'1 set + tie-break':'Best of '+r.sets+' set + tie-break'):'Best of '+r.n+' game'):r.t=='tennis'?(r.sets==1?'1 set (6 game)':'Best of '+r.sets+' set'):'Langsung 21 poin';
+
+  const pesertaHtml=`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Peserta (${ps.length})</h3>
+   <div class="flex flex-wrap gap-2">${ps.map(p=>`<span class="bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1 text-xs font-semibold">${esc(p.n)}${p.u?'':' <span class="text-zinc-500">(Guest)</span>'}${own?` <button class="text-red-400 ml-1" onclick="rmPl('${e.id}','${p.id}')">✕</button>`:''}</span>`).join('')||'<span class="text-xs text-zinc-500">Belum ada peserta</span>'}</div>
+   <div class="text-xs font-bold uppercase text-zinc-400 pt-2">Tambah peserta (ketuk untuk menambah)</div>
+   <div id="sg" class="flex flex-wrap gap-2">${sgHtml(e,'')}</div>
+   <input id="np" class="i" placeholder="Cari nama / ketik nama Guest (pisahkan koma)" oninput="$('#sg').innerHTML=sgHtml(S.events.find(x=>x.id=='${e.id}'),this.value)">
+   <button class="g w-full" onclick="addPl('${e.id}')">+ Daftarkan peserta</button>
+   <p class="text-xs text-zinc-500">Guest tidak masuk leaderboard utama.</p></div>
+  ${fix?`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Tim Fix Partner (${tm.length})</h3>
+   ${tm.map((t,i)=>{const m=[ps.find(p=>p.id==t.a),ps.find(p=>p.id==t.b)].filter(Boolean);return`<div class="flex justify-between text-sm bg-zinc-900/50 rounded-lg px-3 py-2"><b>${esc(tn(m,t.t))}</b>${own?`<button class="text-red-400" onclick="rmTeam('${e.id}',${i})">✕</button>`:''}</div>`}).join('')||'<p class="text-xs text-zinc-500">Belum ada tim</p>'}
+   <div class="grid grid-cols-2 gap-2"><select id="ta1" class="i"><option value="">Pemain 1</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select><select id="ta2" class="i"><option value="">Pemain 2</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select></div>
+   <input id="tnm" class="i" placeholder="Nama tim (opsional, default nama depan)"><button class="g w-full" onclick="mkTeam('${e.id}')">+ Buat tim</button></div>`:''}`;
+
+  const mainHtml=`${done?'<div class="c p-4 text-center text-sm font-bold text-emerald-400">🏁 Event selesai</div>'
+    :fmt=='single'?`<button class="b w-full !py-4" onclick="newForm('${e.id}')">▶ Mulai Pertandingan</button>`
+    :`<button class="b w-full !py-4" onclick="newRound('${e.id}')">▶ Buat Ronde ${rs.length?Math.max(...rs)+1:1}${fmt=='mexicano'&&sd.length?' (urut klasemen)':''}</button>`}
+  ${rs.map(rd=>`<div class="space-y-2"><h3 class="text-xs font-bold uppercase text-zinc-400">${rd?'Ronde '+rd:'Pertandingan'}</h3>
+   ${M.filter(m=>(+m.round||0)==rd).map(m=>`<div onclick="openM('${m.id}')" class="c p-3 cursor-pointer flex justify-between items-center gap-2 ${m.status=='live'?'livecard':''}"><div class="min-w-0"><div class="text-[10px] text-zinc-500">${m.court?'Lapangan '+esc(m.court):''}${m.refereeName?' · Wasit: '+esc(m.refereeName):''}</div><div class="text-sm font-bold truncate">${esc(m.teamA)} <span class="text-zinc-500">vs</span> ${esc(m.teamB)}</div></div>
+   <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`:`<div class="font-black">${sm(m)}</div>`}</div></div>`).join('')}</div>`).join('')||'<p class="text-xs text-zinc-500 text-center py-4">Belum ada pertandingan.</p>'}`;
+
+  const boardHtml=sd.length?`<div class="text-[11px] text-zinc-500 text-right">${r.t=='padel'?'M 3 · S 1 · K 0 · Pembeda: selisih game':r.t=='tennis'?'M 3 · K 0 · Pembeda: selisih game':'M 3 · K 0 · Pembeda: selisih poin'}</div>
+   <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr><th class="p-3 text-center">#</th><th class="p-3">${fix?'Tim':'Pemain'}</th><th class="p-3 text-center">M</th><th class="p-3 text-center">W</th><th class="p-3 text-center">D</th><th class="p-3 text-center">L</th><th class="p-3 text-center">+/-</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
+   ${sd.map((x,i)=>`<tr><td class="p-3 text-center font-black">${i<3?['🥇','🥈','🥉'][i]:i+1}</td><td class="p-3 font-bold">${esc(x.n)}</td><td class="p-3 text-center">${x.m}</td><td class="p-3 text-center text-emerald-400">${x.w}</td><td class="p-3 text-center">${x.d}</td><td class="p-3 text-center text-red-400">${x.l}</td><td class="p-3 text-center">${x.gd>0?'+':''}${x.gd}</td><td class="p-3 text-right font-black">${x.pt}</td></tr>`).join('')}</tbody></table></div>`
+   :'<p class="text-xs text-zinc-500 text-center py-6">Leaderboard muncul setelah ada pertandingan yang selesai.</p>';
+
+  const infoHtml=`<div class="c p-5">${row('Olahraga',SPORT[e.sport])}${row('Format',FMT[fmt]||fmt)}${r.t=='padel'&&fmt!='single'?row('Partner',fix?'Fix Partner':'Mix Partner'):''}${row('Sistem skor',scoring)}${r.t=='padel'?row('Poin game',r.golden?'Golden point':'Advantage'):''}${r.t=='padel'&&fmt!='single'?row('Jumlah lapangan',r.courts||1):''}${row('Tanggal',esc(fd(e.date)))}${row('Lokasi',esc(e.location))}${row('Dibuat oleh',esc(creator))}${row('Status',done?'Selesai':'Berjalan')}</div>`;
+
+  $('#v').innerHTML=`<button class="text-xs font-bold text-zinc-400" onclick="evId=null;events()">← Semua event</button>
+  <div class="c p-5 space-y-4">
+   <div class="flex justify-between gap-3 flex-wrap"><div class="min-w-0"><div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div>
+    <h2 class="text-2xl font-black">${esc(e.name)}${done?' <span class="text-[10px] font-bold text-emerald-400 align-middle">FINISH</span>':''}</h2>
+    <p class="text-xs text-zinc-400 mt-1">${esc(rl(r))}<br>📍 ${esc(e.location)} · ${esc(fd(e.date))}</p></div>
+   <div class="flex gap-2 h-fit flex-wrap">${done?'':`<button class="${joined?'g':'b'}" onclick="joinSelf('${e.id}')">${joined?'✓ Terdaftar · Keluar':'+ Gabung event'}</button>`}
+    ${own?`<button class="g !px-3" onclick="evForm('${e.id}')">✎ Edit</button><button class="${done?'g':'b'} !px-3" onclick="finishEv('${e.id}')">${done?'Buka lagi':'🏁 Finish'}</button>`:''}</div></div>
+   <div class="grid grid-cols-4 gap-2">${stat('Peserta',ps.length)}${stat('Main',M.length)}${stat('Live',nLive,nLive?'text-red-400':'')}${stat('Selesai',nDone,'text-emerald-400')}</div></div>
+  ${nLive?`<div onclick="evT('main')" class="livecard c p-3 text-center text-xs font-bold text-red-400 cursor-pointer">● ${nLive} pertandingan sedang berlangsung</div>`:''}
+  <div class="flex gap-2 overflow-x-auto">${tabBtn('main','Pertandingan')}${tabBtn('board','Leaderboard')}${tabBtn('peserta','Peserta')}${tabBtn('info','Info')}</div>
+  ${tb=='main'?mainHtml:tb=='board'?boardHtml:tb=='peserta'?pesertaHtml:infoHtml}`;
+}
+
+function finishEv(id){
+  const e=S.events.find(x=>x.id==id);if(!e)return;
+  const done=e.status=='done';
+  if(!done){const open=S.matches.filter(m=>m.eventId==id&&m.status!='done').length;
+    if(!confirm(open?open+' pertandingan belum selesai. Tetap finish event?':'Finish event ini?'))return}
+  srv('setEventStatus',{id,status:done?'active':'done'},done?'Event dibuka lagi':'Event selesai')}
+
 function addPl(id){
   const e=S.events.find(x=>x.id==id),v=$('#np').value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
   if(!v.length)return toast('Isi nama dulu');
