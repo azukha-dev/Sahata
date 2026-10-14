@@ -50,11 +50,13 @@ async function call(a,d={}){
   catch(e){return{ok:false,error:'Gagal terhubung ke server'}}
 }
 async function srv(a,d,msg){const r=await call(a,d);toast(r.ok?(msg||'Tersimpan'):r.error);lastAct=0;load();return r}
+let pushing=0,lv=0;const pq=new Set();
 async function load(){
-  if(!U||Date.now()-lastAct<4000||!$('#modal').classList.contains('hidden'))return;
-  let r;
+  if(!U||pushing||Date.now()-lastAct<4000||!$('#modal').classList.contains('hidden'))return;
+  let r;const v0=lv;
   try{r=await (await fetch(API)).json()}
   catch(e){toast('Gagal memuat data dari server',4000);return}
+  if(pushing||v0!=lv||Date.now()-lastAct<4000)return; // data lama, ada perubahan lokal saat mengambil
   if(!r||r.ok===false||!Array.isArray(r.events)){toast('Server: '+((r&&r.error)||'format data salah. Deploy ulang Code.gs'),6000);return}
   S={events:r.events,matches:(r.matches||[]).filter(m=>!(m.teamA=='Tim A'&&m.status=='upcoming')),users:Array.isArray(r.users)?r.users:[]};
   if(!load.shown){load.shown=1;toast('Server mengirim '+S.users.length+' pengguna, '+S.events.length+' event',5000)}
@@ -71,7 +73,13 @@ const jp=j=>{try{return JSON.parse(j)||[]}catch(e){return[]}};
 const rid=()=>Math.random().toString(36).slice(2,8);
 function sgHtml(e,q){q=String(q).split(',').pop().trim().toLowerCase();const ps=P(e),L=S.users.filter(u=>!ps.some(p=>p.u==u.id)&&(!q||u.name.toLowerCase().includes(q))).slice(0,14);
   return L.map(u=>`<button class="g !py-1 !px-3 !text-xs" onclick="pickU('${e.id}','${u.id}')">+ ${esc(u.name)}</button>`).join('')||'<span class="text-xs text-zinc-500">Tidak ada saran. Ketik nama lalu tekan Daftarkan untuk menambah sebagai tamu.</span>'}
-function pickU(id,uid){const u=S.users.find(x=>x.id==uid);if(!u)return;srv('addPlayers',{id,list:JSON.stringify([{n:u.name,u:u.id}])},u.name+' didaftarkan')}
+function opt(a,d,mut,msg){
+  mut();lastAct=Date.now();view();toast(msg);
+  call(a,d).then(r=>{if(!r.ok){toast(r.error,4000);lastAct=0;load()}else lastAct=Date.now()-2500});
+}
+function pickU(id,uid){const e=S.events.find(x=>x.id==id),u=S.users.find(x=>x.id==uid);if(!e||!u||P(e).some(p=>p.u==uid))return;
+  const it={id:rid(),n:u.name,u:u.id};
+  opt('addPlayers',{id,list:JSON.stringify([it])},()=>{e.players=JSON.stringify(P(e).concat([it]))},u.name+' didaftarkan')}
 const fn=n=>String(n).trim().split(/\s+/)[0];
 const tn=(m,c)=>(c&&c.trim())||m.map(x=>fn(x.n)).join(' & ');
 function fd(s){s=String(s||'');if(/^\d{4}-\d{2}-\d{2}$/.test(s))return new Date(s+'T00:00').toDateString();const d=new Date(s);if(isNaN(d))return s;const t=d.toTimeString().slice(0,5);return d.toDateString()+(t=='00:00'?'':' · '+t)}
@@ -111,7 +119,7 @@ function boot(){
 function go(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.className='flex flex-col sm:flex-row items-center sm:gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 '+(b.id=='t-'+t?'border-white text-white':'border-transparent text-zinc-400'));view()}
 function view(){if(!U||!$('#v'))return;({board,events,live,players,me})[tab]();renderOv()}
 
-// ---------- Point (hanya user terdaftar; tamu tidak dihitung) ----------
+// ---------- RANKING (hanya user terdaftar; tamu tidak dihitung) ----------
 function rank(sp){
   const T={};S.users.forEach(u=>T[u.id]={id:u.id,name:u.name,m:0,w:0,d:0,l:0,pt:0});
   S.matches.filter(m=>m.status=='done'&&(sp=='all'||m.sport==sp)).forEach(m=>{const s=ST(m);if(!s)return;
@@ -141,7 +149,7 @@ const fresh=()=>({p:[0,0],g:[0,0],s:[0,0],sh:[],tb:0,d:0,w:-1});
 const snap=s=>{const c=JSON.parse(JSON.stringify(s));delete c.h;delete c.prev;return c};
 function rl(r){
   if(r.t=='padel'){const sc=+r.sets>0?(r.sets==1?'1 set':'Best of '+r.sets+' set')+' + tie-break':r.n+' game';
-    return `Padel · ${FMT[r.fmt||'single']}${r.fmt&&r.fmt!='single'?(r.partner=='fix'?' · partner tetap':' · partner acak'):''} · ${sc} · ${r.golden?'Golden point':'Advantage'}`}
+    return `Padel · ${FMT[r.fmt||'single']}${r.fmt&&r.fmt!='single'?(r.partner=='fix'?' · Fix Partner':' · Mix Partner'):''} · ${sc} · ${r.golden?'Golden point':'Advantage'}`}
   return r.t=='tennis'?(r.sets==1?'Tenis · 1 set (6 game)':`Tenis · Best of ${r.sets} set`):'Bulu Tangkis · langsung 21'}
 function setWin(r,s,t){s.sh=(s.sh||[]).concat([[s.g[0],s.g[1]]]);s.s[t]++;s.g=[0,0];s.p=[0,0];s.tb=0;if(s.s[t]>=Math.ceil(+r.sets/2)){s.d=1;s.w=t}return s}
 function step(r,s,t){
@@ -229,7 +237,7 @@ function evDetail(e){
    <div id="sg" class="flex flex-wrap gap-2">${sgHtml(e,'')}</div>
    <input id="np" class="i" placeholder="Cari nama / ketik nama tamu (pisahkan koma)" oninput="$('#sg').innerHTML=sgHtml(S.events.find(x=>x.id=='${e.id}'),this.value)">
    <button class="g w-full" onclick="addPl('${e.id}')">+ Daftarkan peserta</button>
-   <p class="text-xs text-zinc-500">Nama yang cocok dengan pengguna terdaftar masuk leaderboard utama. Selain itu tercatat sebagai tamu (tidak masuk leaderboard utama). Bisa ditambah kapan saja, termasuk saat event berlangsung.</p></div>
+   <p class="text-xs text-zinc-500">Nama yang cocok dengan pengguna terdaftar mmasuk leaderboard utama. Selain itu tercatat sebagai tamu (tidak masuk leaderboard utama). Bisa ditambah kapan saja, termasuk saat event berlangsung.</p></div>
   ${fix?`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Tim (${tm.length})</h3>
    ${tm.map((t,i)=>{const m=[ps.find(p=>p.id==t.a),ps.find(p=>p.id==t.b)].filter(Boolean);return`<div class="flex justify-between text-sm bg-zinc-900/50 rounded-lg px-3 py-2"><b>${esc(tn(m,t.t))}</b>${own?`<button class="text-red-400" onclick="rmTeam('${e.id}',${i})">✕</button>`:''}</div>`}).join('')||'<p class="text-xs text-zinc-500">Belum ada tim</p>'}
    <div class="grid grid-cols-2 gap-2"><select id="ta1" class="i"><option value="">Pemain 1</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select><select id="ta2" class="i"><option value="">Pemain 2</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select></div>
@@ -243,14 +251,22 @@ function evDetail(e){
    <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`:`<div class="font-black">${sm(m)}</div>`}</div></div>`).join('')}</div>`).join('')}`;
 }
 function addPl(id){
-  const v=$('#np').value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+  const e=S.events.find(x=>x.id==id),v=$('#np').value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
   if(!v.length)return toast('Isi nama dulu');
-  srv('addPlayers',{id,list:JSON.stringify(v.map(n=>({n})))},'Peserta didaftarkan')}
+  const a=P(e).slice(),list=[];
+  v.forEach(n=>{const u=S.users.find(x=>x.name.toLowerCase()==n.toLowerCase()),nm=u?u.name:n;
+    if(a.some(p=>(u&&p.u==u.id)||p.n.toLowerCase()==nm.toLowerCase()))return;
+    const it={id:rid(),n:nm,u:u?u.id:''};a.push(it);list.push(it)});
+  if(!list.length)return toast('Sudah terdaftar');
+  opt('addPlayers',{id,list:JSON.stringify(list)},()=>{e.players=JSON.stringify(a)},list.length+' peserta didaftarkan')}
 function joinSelf(id){
-  const e=S.events.find(x=>x.id==id),joined=P(e).some(p=>p.u==U.id);
-  if(joined&&!confirm('Keluar dari event ini?'))return;
-  srv(joined?'leaveEvent':'joinEvent',{id},joined?'Kamu keluar dari event':'Berhasil bergabung ✓')}
-function rmPl(id,pid){const e=S.events.find(x=>x.id==id),p=P(e).find(x=>x.id==pid);if(!p||!confirm('Hapus '+p.n+'?'))return;srv('rmPlayer',{id,pid},'Peserta dihapus')}
+  const e=S.events.find(x=>x.id==id),a=P(e),mine=a.find(p=>p.u==U.id);
+  if(mine){if(!confirm('Keluar dari event ini?'))return;
+    opt('leaveEvent',{id},()=>{e.players=JSON.stringify(a.filter(p=>p.id!=mine.id));e.teams=JSON.stringify(TM(e).filter(t=>t.a!=mine.id&&t.b!=mine.id))},'Kamu keluar dari event');return}
+  const pid=rid();
+  opt('joinEvent',{id,pid},()=>{e.players=JSON.stringify(a.concat([{id:pid,n:U.name,u:U.id}]))},'Berhasil bergabung ✓')}
+function rmPl(id,pid){const e=S.events.find(x=>x.id==id),p=P(e).find(x=>x.id==pid);if(!p||!confirm('Hapus '+p.n+'?'))return;
+  opt('rmPlayer',{id,pid},()=>{e.players=JSON.stringify(P(e).filter(x=>x.id!=pid));e.teams=JSON.stringify(TM(e).filter(t=>t.a!=pid&&t.b!=pid))},'Peserta dihapus')}
 async function setF(id,field,val){const r=await call('setField',{id,field,val:JSON.stringify(val)});toast(r.ok?'Tersimpan':r.error);lastAct=0;load()}
 function mkTeam(id){const e=S.events.find(x=>x.id==id),a=$('#ta1').value,b=$('#ta2').value;if(!a||!b||a==b)return toast('Pilih 2 pemain berbeda');setF(id,'teams',TM(e).concat([{a,b,t:$('#tnm').value.trim()}]))}
 function rmTeam(id,i){const e=S.events.find(x=>x.id==id),t=TM(e).slice();t.splice(i,1);setF(id,'teams',t)}
@@ -379,7 +395,18 @@ function sbHtml(m){
    fin=s.d?`<div class="text-center font-black text-emerald-400 uppercase">🏁 Selesai · ${s.w<0?'Seri':'Pemenang: '+esc(s.w?m.teamB:m.teamA)}</div>`:'';
   return wrap(`${dz}${tbn}${fin}${shl}<div class="flex-1 grid grid-cols-2 gap-3 min-h-0">${side(0)}${side(1)}</div><p class="text-xs text-zinc-500 text-center">Wasit: <b class="text-zinc-300">${esc(m.refereeName)}</b> · ${mine?'kamu bisa ubah skor':'mode penonton'}</p>`);
 }
-async function push(m){lastAct=Date.now();view();const s=ST(m),r=await call('st',{id:m.id,st:m.st,done:s.d});if(!r.ok){toast(r.error);lastAct=0;load()}else lastAct=Date.now()-2500}
+async function push(m){
+  lv++;lastAct=Date.now();pq.add(m.id);view();
+  if(pushing)return; // sedang mengirim: skor terbaru dikirim setelahnya
+  pushing=1;
+  while(pq.size){
+    const id=pq.values().next().value;pq.delete(id);
+    const mm=S.matches.find(x=>x.id==id);if(!mm)continue;
+    const s=ST(mm),r=await call('st',{id,st:mm.st,done:s.d});
+    if(!r.ok){toast(r.error,4000);pq.clear();pushing=0;lastAct=0;load();return}
+  }
+  pushing=0;lastAct=Date.now(); // beri jeda 4 detik agar cache server segar sebelum polling lagi
+}
 function pt(id,t){const m=S.matches.find(x=>x.id==id),s=ST(m)||fresh();if(m.refereeUid!=U.id||s.d)return;const n=step(R(m),s,t);n.h=(s.h||[]).concat([snap(s)]).slice(-40);m.st=JSON.stringify(n);if(n.d)m.status='done';push(m)}
 function un(id){const m=S.matches.find(x=>x.id==id),s=ST(m);if(m.refereeUid!=U.id||!s||!(s.h||[]).length)return;const h=s.h.slice(),p=h.pop();p.h=h;m.st=JSON.stringify(p);m.status=p.d?'done':'live';push(m)}
 function fixForm(id){
