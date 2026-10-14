@@ -52,8 +52,17 @@ async function call(a,d={}){
 async function srv(a,d,msg){const r=await call(a,d);toast(r.ok?(msg||'Tersimpan'):r.error);lastAct=0;load();return r}
 async function load(){
   if(!U||Date.now()-lastAct<4000||!$('#modal').classList.contains('hidden'))return;
-  try{S=await (await fetch(API)).json();S.matches=(S.matches||[]).filter(m=>!(m.teamA=='Tim A'&&m.status=='upcoming'));
-    const a=document.activeElement;if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&$('#v')&&$('#v').contains(a)){renderOv();return}view()}catch(e){}
+  let r;
+  try{r=await (await fetch(API)).json()}
+  catch(e){toast('Gagal memuat data dari server',4000);return}
+  if(!r||r.ok===false||!Array.isArray(r.events)){toast('Server: '+((r&&r.error)||'format data salah. Deploy ulang Code.gs'),6000);return}
+  S={events:r.events,matches:(r.matches||[]).filter(m=>!(m.teamA=='Tim A'&&m.status=='upcoming')),users:Array.isArray(r.users)?r.users:[]};
+  if(!load.shown){load.shown=1;toast('Server mengirim '+S.users.length+' pengguna, '+S.events.length+' event',5000)}
+  try{
+    const a=document.activeElement;
+    if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&$('#v')&&$('#v').contains(a)){renderOv();return}
+    view();
+  }catch(e){console.error(e);toast('Error tampilan: '+e.message,6000)}
 }
 (function poll(){load();setTimeout(poll,(tab==='live'||ovId)?3000:15000)})();
 
@@ -196,7 +205,9 @@ async function newRound(id){
 
 // ---------- EVENTS ----------
 function events(){
-  const e=evId&&S.events.find(x=>x.id==evId);if(e)return evDetail(e);
+  const e=evId&&S.events.find(x=>x.id==evId);
+  if(e){try{return evDetail(e)}catch(err){console.error(err);toast('Gagal membuka event: '+err.message,6000);evId=null}}
+  // ... sisa fungsi (daftar event) tetap sama
   $('#v').innerHTML=`<div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Event</h2><button onclick="evForm()" class="b">+ Event Baru</button></div>
   <div class="grid md:grid-cols-3 gap-4">${S.events.map(e=>`<div class="c p-5 space-y-2">
    <div class="text-xs font-bold uppercase text-orange-400">${SPORT[e.sport]}</div><h3 class="font-extrabold text-lg">${esc(e.name)}</h3>
@@ -248,8 +259,8 @@ function evForm(id){
   modal(`<h3 class="font-black uppercase">${ED?'Edit Event':'Buat Event Baru'}</h3><input id="en" class="i" placeholder="Nama event" value="${esc(ED?ED.name:'')}">
   <select id="es" class="i" onchange="rf()" ${ED?'disabled':''}><option value="padel" ${sel(d.t,'padel')}>Padel</option><option value="badminton" ${sel(d.t,'badminton')}>Bulu Tangkis</option><option value="tennis" ${sel(d.t,'tennis')}>Tenis</option></select><div id="rf"></div>
   <div class="grid grid-cols-2 gap-3"><input id="ed" type="datetime-local" class="i" value="${toLocalInput(ED?ED.date:'')}"><input id="el" class="i" placeholder="Lokasi" value="${esc(ED?ED.location:'')}"></div>
-  ${ED?'<p class="text-xs text-zinc-500">Perubahan aturan berlaku untuk pertandingan yang belum dimulai.</p>':'<textarea id="ep" class="i" rows="2" placeholder="Peserta awal (opsional): Ani, Budi, Cici. Bisa juga ditambah nanti."></textarea>'}
-  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="saveEv()">${ED?'Simpan':'Buat'}</button></div>`);rf();
+  ${ED?'<p class="text-xs text-zinc-500">Perubahan aturan berlaku untuk pertandingan yang belum dimulai.</p>':'<div class="text-xs font-bold uppercase text-zinc-400">Peserta awal (opsional)</div><div id="sgn" class="flex flex-wrap gap-2"></div><textarea id="ep" class="i" rows="2" oninput="sgNew()" placeholder="Ketuk nama di atas, atau ketik nama lain (tamu): Ade, Egi, Edo"></textarea>'}
+  <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="saveEv()">${ED?'Simpan':'Buat'}</button></div>`);rf();if(!ED)sgNew();
 }
 function rf(){
   const s=$('#es').value,d=ED?R(ED):{},sel=(a,b)=>a==b?'selected':'',ds=+d.sets||0;
@@ -262,15 +273,36 @@ function rf(){
    <input id="rc" type="number" min="1" max="10" class="i" placeholder="Jumlah lapangan" value="${d.courts||1}"></div>
    <p class="text-xs text-zinc-500">Mode set (6 game, selisih 2, tie-break 7 poin di 6-6) hanya untuk Pertandingan bebas. Americano/Mexicano memakai mode game. Pertandingan bebas: Anda pilih sendiri pemainnya.</p>`
   :s=='tennis'?`<select id="rs" class="i"><option value="1" ${sel(d.sets,1)}>1 set (cari 6 game)</option><option value="3" ${sel(d.sets,3)}>Best of 3 set</option><option value="5" ${sel(d.sets,5)}>Best of 5 set</option></select>`:'<p class="text-xs text-zinc-400">Bulu tangkis: langsung 21 poin.</p>'}
+
+  function sgNew(){
+  const t=$('#ep'),parts=t.value.split(/[,\n]/),q=(parts[parts.length-1]||'').trim().toLowerCase(),have=parts.map(x=>x.trim().toLowerCase());
+  const L=S.users.filter(u=>!have.includes(u.name.toLowerCase())&&(!q||u.name.toLowerCase().includes(q))).slice(0,14);
+  $('#sgn').innerHTML=L.map(u=>`<button type="button" class="g !py-1 !px-3 !text-xs" data-n="${esc(u.name)}" onclick="addTo(this.dataset.n)">+ ${esc(u.name)}</button>`).join('')||'<span class="text-xs text-zinc-500">Tidak ada saran. Nama yang diketik akan jadi tamu.</span>';
+}
+function addTo(n){
+  const t=$('#ep'),raw=t.value,a=raw.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+  if(raw.trim()&&!/[,\n]\s*$/.test(raw))a.pop(); // buang ketikan yang belum selesai, diganti nama yang diketuk
+  if(!a.some(x=>x.toLowerCase()==n.toLowerCase()))a.push(n);
+  t.value=a.join(', ')+', ';sgNew();t.focus();
+}
+
 async function saveEv(){
-  const sp=$('#es').value,fm=sp=='padel'?$('#rm').value:'',rule=sp=='padel'?{t:'padel',fmt:fm,partner:$('#rp').value,n:+$('#rn').value,sets:fm=='single'?+$('#rs').value:0,golden:+$('#rg').value,courts:Math.max(1,+$('#rc').value||1)}:sp=='tennis'?{t:'tennis',sets:+$('#rs').value}:{t:'badminton'};
-  const d={name:$('#en').value.trim(),sport:sp,date:$('#ed').value,location:$('#el').value.trim(),rule:JSON.stringify(rule)};
-  if(!d.name||!d.location)return toast('Lengkapi nama & lokasi');
-  if(ED){d.id=ED.id;closeM();toast('Menyimpan...');const r=await call('updateEvent',d);toast(r.ok?'Event diperbarui':r.error);lastAct=0;load();return}
-  const a=[];($('#ep').value||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>{const u=S.users.find(x=>x.name.toLowerCase()==n.toLowerCase());
-    if(a.some(p=>p.n.toLowerCase()==n.toLowerCase()))return;a.push({id:rid(),n:u?u.name:n,u:u?u.id:''})});
-  d.players=JSON.stringify(a);
-  toast('Menyimpan...',20000);const r=await call('createEvent',d);if(!r.ok)return toast(r.error||'Gagal menyimpan');closeM();toast('Event dibuat');evId=r.id;tab='events';go('events');lastAct=0;load();
+  try{
+    const sp=$('#es').value,fm=sp=='padel'?$('#rm').value:'';
+    const rule=sp=='padel'?{t:'padel',fmt:fm,partner:$('#rp').value,n:+$('#rn').value,sets:fm=='single'?+$('#rs').value:0,golden:+$('#rg').value,courts:Math.max(1,+$('#rc').value||1)}:sp=='tennis'?{t:'tennis',sets:+$('#rs').value}:{t:'badminton'};
+    const d={name:$('#en').value.trim(),sport:sp,date:$('#ed').value,location:$('#el').value.trim(),rule:JSON.stringify(rule)};
+    if(!d.name||!d.location)return toast('Lengkapi nama & lokasi');
+    if(ED){d.id=ED.id;closeM();toast('Menyimpan...');const r=await call('updateEvent',d);toast(r.ok?'Event diperbarui':r.error);lastAct=0;load();return}
+    const us=S.users||[],a=[];
+    ($('#ep').value||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>{
+      const u=us.find(x=>String(x.name).toLowerCase()==n.toLowerCase());
+      if(a.some(p=>p.n.toLowerCase()==n.toLowerCase()))return;
+      a.push({id:rid(),n:u?u.name:n,u:u?u.id:''})});
+    d.players=JSON.stringify(a);
+    toast('Menyimpan...',20000);
+    const r=await call('createEvent',d);if(!r.ok)return toast(r.error||'Gagal menyimpan');
+    closeM();toast('Event dibuat');evId=r.id;tab='events';lastAct=0;go('events');load();
+  }catch(err){console.error(err);toast('Error: '+err.message,6000)}
 }
 async function delEv(id){if(!confirm('Hapus event ini?'))return;const r=await call('deleteEvent',{id});toast(r.ok?'Dihapus':r.error);evId=null;lastAct=0;load()}
 
