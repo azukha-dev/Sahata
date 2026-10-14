@@ -43,7 +43,7 @@ const SPORT={padel:'Padel',badminton:'Bulu Tangkis',tennis:'Tenis',all:'Multi'};
 let U=null;try{U=JSON.parse(localStorage.getItem('sahata_user'))}catch(e){}
 let S={events:[],matches:[],users:[]},tab='board',sport='all',liveId=null,lastAct=0,mode='login',evId=null,ED=null,ovId=null;
 
-function toast(m,ms){const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.add('hidden'),ms||2500)}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.add('hidden'),2500)}
 function modal(h){$('#mbox').innerHTML=h;$('#modal').classList.remove('hidden')}
 function closeM(){$('#modal').classList.add('hidden')}
 async function call(a,d={}){
@@ -60,10 +60,6 @@ async function load(){
 // ---------- HELPERS ----------
 const jp=j=>{try{return JSON.parse(j)||[]}catch(e){return[]}};
 const rid=()=>Math.random().toString(36).slice(2,8);
-function sgHtml(e,q){q=String(q).split(',').pop().trim().toLowerCase();const ps=P(e),L=S.users.filter(u=>!ps.some(p=>p.u==u.id)&&(!q||u.name.toLowerCase().includes(q))).slice(0,14);
-  return L.map(u=>`<button class="g !py-1 !px-3 !text-xs" onclick="pickU('${e.id}','${u.id}')">+ ${esc(u.name)}</button>`).join('')||'<span class="text-xs text-zinc-500">Tidak ada saran. Ketik nama lalu tekan Daftarkan untuk menambah sebagai tamu.</span>'}
-function pickU(id,uid){const e=S.events.find(x=>x.id==id),u=S.users.find(x=>x.id==uid),a=P(e).slice();if(!u||a.some(p=>p.u==uid))return;a.push({id:rid(),n:u.name,u:u.id});setF(id,'players',a)}
-function addTo(b){const t=$('#ep'),n=b.textContent.trim(),a=t.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);if(!a.some(x=>x.toLowerCase()==n.toLowerCase()))a.push(n);t.value=a.join(', ')}
 const fn=n=>String(n).trim().split(/\s+/)[0];
 const tn=(m,c)=>(c&&c.trim())||m.map(x=>fn(x.n)).join(' & ');
 function fd(s){s=String(s||'');if(/^\d{4}-\d{2}-\d{2}$/.test(s))return new Date(s+'T00:00').toDateString();const d=new Date(s);if(isNaN(d))return s;const t=d.toTimeString().slice(0,5);return d.toDateString()+(t=='00:00'?'':' · '+t)}
@@ -209,9 +205,8 @@ function evDetail(e){
   <div class="c p-5 space-y-3"><div class="flex justify-between items-center gap-2"><h3 class="text-sm font-extrabold uppercase">Peserta (${ps.length})</h3>
    <button class="${joined?'g':'b'}" onclick="joinSelf('${e.id}')">${joined?'Keluar dari event':'+ Gabung event'}</button></div>
    <div class="flex flex-wrap gap-2">${ps.map((p,i)=>`<span class="bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1 text-xs font-semibold">${esc(p.n)}${p.u?'':' <span class="text-zinc-500">(tamu)</span>'}${own?` <button class="text-red-400 ml-1" onclick="rmPl('${e.id}',${i})">✕</button>`:''}</span>`).join('')||'<span class="text-xs text-zinc-500">Belum ada peserta</span>'}</div>
-   <div class="text-xs font-bold uppercase text-zinc-400">Pengguna terdaftar (ketuk untuk menambah)</div>
-   <div id="sg" class="flex flex-wrap gap-2">${sgHtml(e,'')}</div>
-   <input id="np" class="i" placeholder="Cari nama / ketik nama tamu (pisahkan koma)" oninput="$('#sg').innerHTML=sgHtml(S.events.find(x=>x.id=='${e.id}'),this.value)">
+   <datalist id="ul">${S.users.map(u=>`<option value="${esc(u.name)}">`).join('')}</datalist>
+   <input id="np" list="ul" class="i" placeholder="Tambah peserta lain (pisahkan koma). Bukan pengguna = tamu">
    <button class="g w-full" onclick="addPl('${e.id}')">+ Daftarkan peserta</button>
    <p class="text-xs text-zinc-500">Nama yang cocok dengan pengguna terdaftar masuk ranking utama. Selain itu tercatat sebagai tamu (tidak masuk ranking utama). Bisa ditambah kapan saja, termasuk saat event berlangsung.</p></div>
   ${fix?`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Tim (${tm.length})</h3>
@@ -247,7 +242,7 @@ function evForm(id){
   modal(`<h3 class="font-black uppercase">${ED?'Edit Event':'Buat Event Baru'}</h3><input id="en" class="i" placeholder="Nama event" value="${esc(ED?ED.name:'')}">
   <select id="es" class="i" onchange="rf()" ${ED?'disabled':''}><option value="padel" ${sel(d.t,'padel')}>Padel</option><option value="badminton" ${sel(d.t,'badminton')}>Bulu Tangkis</option><option value="tennis" ${sel(d.t,'tennis')}>Tenis</option></select><div id="rf"></div>
   <div class="grid grid-cols-2 gap-3"><input id="ed" type="datetime-local" class="i" value="${toLocalInput(ED?ED.date:'')}"><input id="el" class="i" placeholder="Lokasi" value="${esc(ED?ED.location:'')}"></div>
-  ${ED?'<p class="text-xs text-zinc-500">Perubahan aturan berlaku untuk pertandingan yang belum dimulai.</p>':`<textarea id="ep" class="i" rows="2" placeholder="Peserta awal (opsional). Ketuk nama di bawah, atau ketik nama tamu dipisah koma"></textarea><div class="flex flex-wrap gap-2">${S.users.map(u=>`<button type="button" class="g !py-1 !px-3 !text-xs" onclick="addTo(this)">${esc(u.name)}</button>`).join('')}</div>`}
+  ${ED?'<p class="text-xs text-zinc-500">Perubahan aturan berlaku untuk pertandingan yang belum dimulai.</p>':'<textarea id="ep" class="i" rows="2" placeholder="Peserta awal (opsional): Ani, Budi, Cici. Bisa juga ditambah nanti."></textarea>'}
   <div class="flex justify-end gap-2 pt-2"><button class="g" onclick="closeM()">Batal</button><button class="b" onclick="saveEv()">${ED?'Simpan':'Buat'}</button></div>`);rf();
 }
 function rf(){
@@ -268,7 +263,7 @@ async function saveEv(){
   const a=[];($('#ep').value||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean).forEach(n=>{const u=S.users.find(x=>x.name.toLowerCase()==n.toLowerCase());
     if(a.some(p=>p.n.toLowerCase()==n.toLowerCase()))return;a.push({id:rid(),n:u?u.name:n,u:u?u.id:''})});
   d.players=JSON.stringify(a);
-  toast('Menyimpan...',20000);const r=await call('createEvent',d);if(!r.ok)return toast(r.error||'Gagal menyimpan');closeM();toast('Event dibuat');evId=r.id;tab='events';go('events');lastAct=0;load();
+  closeM();toast('Menyimpan...');const r=await call('createEvent',d);toast(r.ok?'Event dibuat':r.error);if(r.ok){evId=r.id;tab='events'}lastAct=0;load();
 }
 async function delEv(id){if(!confirm('Hapus event ini?'))return;const r=await call('deleteEvent',{id});toast(r.ok?'Dihapus':r.error);evId=null;lastAct=0;load()}
 
