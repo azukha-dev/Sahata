@@ -95,7 +95,7 @@ function authView(){
   <p class="text-zinc-400 text-sm">Sport Ultimate Ranking & Events</p></div>
   <div class="flex bg-zinc-900 rounded-lg p-1 text-sm font-bold">${T.map(t=>`<button onclick="am='${t[0]}';authView()" class="flex-1 py-2 rounded-md ${am==t[0]?'bg-white text-black':'text-zinc-400'}">${t[1]}</button>`).join('')}</div>
   ${am=='guest'
-   ?`<input id="gn" class="i" placeholder="Nama kamu" onkeydown="if(event.key=='Enter')doGuest()"><button id="gb" onclick="doGuest()" class="b w-full">👀 Masuk sebagai Guest</button><p class="text-xs text-zinc-500 text-center">Guest bisa melihat dan ikut event tanpa akun. Hanya perlu nama.</p>`
+   ?`<input id="gn" class="i" placeholder="Nama kamu" onkeydown="if(event.key=='Enter')doGuest()"><button id="gb" onclick="doGuest()" class="b w-full">Masuk sebagai Guest</button><p class="text-xs text-zinc-500 text-center">Guest bisa melihat dan ikut event tanpa akun. Hanya perlu nama.</p>`
    :`${am=='register'?'<input id="an" class="i" placeholder="Nama" autocomplete="name">':''}<input id="ae" type="email" class="i" placeholder="Email" autocomplete="email" onkeydown="if(event.key=='Enter')doAuth()"><button id="ab" onclick="doAuth()" class="b w-full">${am=='login'?'Masuk':'Daftar Sekarang'}</button><p class="text-xs text-zinc-500 text-center">${am=='login'?'Masuk dengan email yang sudah terdaftar.':'Cukup nama dan email. Email dipakai untuk masuk seterusnya.'}</p>`}
   </div></div>`;
 }
