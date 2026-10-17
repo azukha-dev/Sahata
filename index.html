@@ -87,24 +87,24 @@ function toLocalInput(s){s=String(s||'');if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.tes
 function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{})}
 
 // ---------- AUTH (email saja) + GUEST ----------
+let am='login';
 function authView(){
+  const T=[['login','Masuk'],['register','Daftar'],['guest','Guest']];
   $('#app').innerHTML=`<div class="min-h-screen flex items-center justify-center p-5"><div class="c w-full max-w-sm p-7 space-y-5">
   <div class="text-center space-y-1"><img src="logo.png" alt="SAHATA" class="w-44 mx-auto rounded-2xl bg-[#faf8ec] p-2">
   <p class="text-zinc-400 text-sm">Sport Ultimate Ranking & Events</p></div>
-  <input id="ae" type="email" class="i" placeholder="Email" autocomplete="email" onkeydown="if(event.key=='Enter')doAuth()">
-  <button id="ab" onclick="doAuth()" class="b w-full">Masuk</button>
-  <p class="text-xs text-zinc-500 text-center">Cukup email. Kalau belum terdaftar, akun dibuat otomatis.</p>
-  <div class="flex items-center gap-3 text-xs text-zinc-600"><div class="flex-1 h-px bg-zinc-800"></div>atau<div class="flex-1 h-px bg-zinc-800"></div></div>
-  <input id="gn" class="i" placeholder="Nama kamu (untuk Guest)" onkeydown="if(event.key=='Enter')doGuest()">
-  <button id="gb" onclick="doGuest()" class="g w-full">👀 Lihat Live sebagai Guest</button>
-  <p class="text-xs text-zinc-500 text-center">Guest hanya bisa menonton pertandingan yang sedang live.</p></div></div>`;
+  <div class="flex bg-zinc-900 rounded-lg p-1 text-sm font-bold">${T.map(t=>`<button onclick="am='${t[0]}';authView()" class="flex-1 py-2 rounded-md ${am==t[0]?'bg-white text-black':'text-zinc-400'}">${t[1]}</button>`).join('')}</div>
+  ${am=='guest'
+   ?`<input id="gn" class="i" placeholder="Nama kamu" onkeydown="if(event.key=='Enter')doGuest()"><button id="gb" onclick="doGuest()" class="b w-full">👀 Masuk sebagai Guest</button><p class="text-xs text-zinc-500 text-center">Guest bisa melihat dan ikut event tanpa akun. Hanya perlu nama.</p>`
+   :`${am=='register'?'<input id="an" class="i" placeholder="Nama" autocomplete="name">':''}<input id="ae" type="email" class="i" placeholder="Email" autocomplete="email" onkeydown="if(event.key=='Enter')doAuth()"><button id="ab" onclick="doAuth()" class="b w-full">${am=='login'?'Masuk':'Daftar Sekarang'}</button><p class="text-xs text-zinc-500 text-center">${am=='login'?'Masuk dengan email yang sudah terdaftar.':'Cukup nama dan email. Email dipakai untuk masuk seterusnya.'}</p>`}
+  </div></div>`;
 }
 async function doAuth(){
-  const email=$('#ae').value.trim();
-  if(!email)return toast('Email wajib diisi');
+  const email=$('#ae').value.trim(),name=am=='register'?$('#an').value.trim():'';
+  if(!email||(am=='register'&&!name))return toast(am=='register'?'Nama & email wajib diisi':'Email wajib diisi');
   $('#ab').textContent='Memproses...';
-  const r=await call('login',{email});
-  if(!r.ok){toast(r.error);$('#ab').textContent='Masuk';return}
+  const r=await call(am,{email,name});
+  if(!r.ok){toast(r.error,4000);$('#ab').textContent=am=='login'?'Masuk':'Daftar Sekarang';return}
   U=r.user;localStorage.setItem('sahata_user',JSON.stringify(U));boot();
 }
 async function doGuest(){
@@ -112,7 +112,7 @@ async function doGuest(){
   if(!name)return toast('Isi nama dulu');
   $('#gb').textContent='Memproses...';
   const r=await call('guest',{name});
-  if(!r.ok){toast(r.error);$('#gb').textContent='👀 Lihat Live sebagai Guest';return}
+  if(!r.ok){toast(r.error);$('#gb').textContent='👀 Masuk sebagai Guest';return}
   U={id:r.guest.id,name:r.guest.name,guest:1};localStorage.setItem('sahata_user',JSON.stringify(U));boot();
 }
 function logout(){localStorage.removeItem('sahata_user');U=null;closeOv();boot()}
@@ -120,25 +120,17 @@ function logout(){localStorage.removeItem('sahata_user');U=null;closeOv();boot()
 // ---------- SHELL ----------
 function boot(){
   if(!U)return authView();
-  if(U.guest)return guestBoot();
-  const T=[['board','🏆','Leaderboard'],['events','📅','Event'],['live','🔴','Live'],['players','👥','Atlet'],['me','🪪','Profile']];
+  const G=!!U.guest;if(G&&!['events','live'].includes(tab))tab='events';
+  const T=G?[['events','📅','Event'],['live','🔴','Live']]:[['board','🏆','Leaderboard'],['events','📅','Event'],['live','🔴','Live'],['players','👥','Atlet'],['me','🪪','Profile']];
   $('#app').innerHTML=`<header class="sticky top-0 z-40 bg-black/90 backdrop-blur border-b border-zinc-800 px-4 h-14 flex items-center justify-between">
    <img src="logo.png" alt="SAHATA" class="h-10 w-auto rounded-lg bg-[#faf8ec] p-0.5">
-   <span class="text-xs text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1">● ${esc(U.name)}</span></header>
+   <div class="flex items-center gap-2"><span class="text-xs text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1">${G?'👀 ':'● '}${esc(U.name)}${G?' · Guest':''}</span>${G?'<button class="g !py-1.5 !px-3 !text-xs" onclick="logout()">Masuk</button>':''}</div></header>
    <nav class="bg-zinc-950 border-b border-zinc-800 flex overflow-x-auto sticky top-14 z-30">${T.map(t=>`<button id="t-${t[0]}" onclick="go('${t[0]}')" class="px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2"></button>`).join('')}</nav>
    <main id="v" class="max-w-6xl mx-auto p-4 space-y-4"></main>`;
   T.forEach(t=>$('#t-'+t[0]).innerHTML=`<span class="e">${t[1]}</span><span>${t[2]}</span>`);go(tab);load();
 }
-function guestBoot(){
-  tab='live';
-  $('#app').innerHTML=`<header class="sticky top-0 z-40 bg-black/90 backdrop-blur border-b border-zinc-800 px-4 h-14 flex items-center justify-between">
-   <img src="logo.png" alt="SAHATA" class="h-10 w-auto rounded-lg bg-[#faf8ec] p-0.5">
-   <div class="flex items-center gap-2"><span class="text-xs text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1">👀 ${esc(U.name)} · Guest</span><button class="g !py-1.5 !px-3 !text-xs" onclick="logout()">Masuk</button></div></header>
-   <main id="v" class="max-w-6xl mx-auto p-4 space-y-4"></main>`;
-  view();load();
-}
 function go(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.className='flex flex-col sm:flex-row items-center sm:gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 '+(b.id=='t-'+t?'border-white text-white':'border-transparent text-zinc-400'));view()}
-function view(){if(!U||!$('#v'))return;if(U.guest){guestLive();renderOv();return}({board,events,live,players,me})[tab]();renderOv()}
+function view(){if(!U||!$('#v'))return;if(U.guest){(({events,live:guestLive})[tab]||events)();renderOv();return}({board,events,live,players,me})[tab]();renderOv()}
 function guestLive(){ // Guest: hanya pertandingan LIVE pada event yang masih berjalan, read-only
   const act=new Set(S.events.filter(e=>e.status!='done').map(e=>e.id)),M=S.matches.filter(m=>m.status=='live'&&act.has(m.eventId)).reverse();
   $('#v').innerHTML=`<div><h2 class="text-2xl font-black uppercase">Live Match</h2><p class="text-xs text-zinc-400">Pertandingan yang sedang berlangsung. Diperbarui otomatis.</p></div>
@@ -257,7 +249,7 @@ function evT(t){evTab=t;events()}
 function events(){
   const e=evId&&S.events.find(x=>x.id==evId);
   if(e){try{return evDetail(e)}catch(err){console.error(err);toast('Gagal membuka event: '+err.message,6000);evId=null}}
-  $('#v').innerHTML=`<div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Event</h2><button onclick="evForm()" class="b">+ Event Baru</button></div>
+  $('#v').innerHTML=`<div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Event</h2>${U.guest?'':'<button onclick="evForm()" class="b">+ Event Baru</button>'}</div>
   <div class="grid md:grid-cols-3 gap-4">${S.events.slice().reverse().map(e=>{
     const M=S.matches.filter(m=>m.eventId==e.id),live=M.filter(m=>m.status=='live').length,done=e.status=='done';
     return`<div onclick="evId='${e.id}';evTab=null;events()" class="c p-5 space-y-2 cursor-pointer hover:border-zinc-600 ${live?'livecard':''}">
@@ -270,7 +262,7 @@ function events(){
 }
 function evDetail(e){
   const r=R(e),fmt=r.fmt||'single',fix=isFix(r),ps=P(e),tm=TM(e),own=e.createdBy==U.id,done=e.status=='done';
-  const M=S.matches.filter(m=>m.eventId==e.id),joined=ps.some(p=>p.u==U.id);
+  const M=S.matches.filter(m=>m.eventId==e.id),joined=ps.some(p=>U.guest?p.g==U.id:p.u==U.id);
   const nDone=M.filter(m=>m.status=='done').length,nLive=M.filter(m=>m.status=='live').length;
   const rs=[...new Set(M.map(m=>+m.round||0))].sort((a,b)=>a-b),free=ps.filter(p=>!tm.some(t=>t.a==p.id||t.b==p.id));
   const sd=nDone?stand(e):[],tb=evTab||(M.length?'main':'peserta');
@@ -282,22 +274,23 @@ function evDetail(e){
 
   const pesertaHtml=`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Peserta (${ps.length})</h3>
    <div class="flex flex-wrap gap-2">${ps.map(p=>`<span class="bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1 text-xs font-semibold">${esc(p.n)}${p.u?'':' <span class="text-zinc-500">(Guest)</span>'}${own?` <button class="text-red-400 ml-1" onclick="rmPl('${e.id}','${p.id}')">✕</button>`:''}</span>`).join('')||'<span class="text-xs text-zinc-500">Belum ada peserta</span>'}</div>
-   <div class="text-xs font-bold uppercase text-zinc-400 pt-2">Tambah peserta (ketuk untuk menambah)</div>
+   ${U.guest?'<p class="text-xs text-zinc-500 pt-2">Kamu masuk sebagai Guest. Klik <b>+ Gabung event</b> di atas untuk ikut sebagai peserta.</p>':`<div class="text-xs font-bold uppercase text-zinc-400 pt-2">Tambah peserta (ketuk untuk menambah)</div>
    <div id="sg" class="flex flex-wrap gap-2">${sgHtml(e,'')}</div>
    <input id="np" class="i" placeholder="Cari nama / ketik nama Guest (pisahkan koma)" oninput="$('#sg').innerHTML=sgHtml(S.events.find(x=>x.id=='${e.id}'),this.value)">
-   <button class="g w-full" onclick="addPl('${e.id}')">+ Daftarkan peserta</button>
+   <button class="g w-full" onclick="addPl('${e.id}')">+ Daftarkan peserta</button>`}
    <p class="text-xs text-zinc-500">Guest tidak masuk leaderboard utama.</p></div>
   ${fix?`<div class="c p-5 space-y-3"><h3 class="text-sm font-extrabold uppercase">Tim Fix Partner (${tm.length})</h3>
    ${tm.map((t,i)=>{const m=[ps.find(p=>p.id==t.a),ps.find(p=>p.id==t.b)].filter(Boolean);return`<div class="flex justify-between text-sm bg-zinc-900/50 rounded-lg px-3 py-2"><b>${esc(tn(m,t.t))}</b>${own?`<button class="text-red-400" onclick="rmTeam('${e.id}',${i})">✕</button>`:''}</div>`}).join('')||'<p class="text-xs text-zinc-500">Belum ada tim</p>'}
-   <div class="grid grid-cols-2 gap-2"><select id="ta1" class="i"><option value="">Pemain 1</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select><select id="ta2" class="i"><option value="">Pemain 2</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select></div>
-   <input id="tnm" class="i" placeholder="Nama tim (opsional, default nama depan)"><button class="g w-full" onclick="mkTeam('${e.id}')">+ Buat tim</button></div>`:''}`;
+   ${U.guest?'':`<div class="grid grid-cols-2 gap-2"><select id="ta1" class="i"><option value="">Pemain 1</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select><select id="ta2" class="i"><option value="">Pemain 2</option>${free.map(p=>`<option value="${p.id}">${esc(p.n)}</option>`).join('')}</select></div>
+   <input id="tnm" class="i" placeholder="Nama tim (opsional, default nama depan)"><button class="g w-full" onclick="mkTeam('${e.id}')">+ Buat tim</button>`}</div>`:''}`;
 
   const mainHtml=`${done?'<div class="c p-4 text-center text-sm font-bold text-emerald-400">🏁 Event selesai</div>'
+    :U.guest?''
     :fmt=='single'?`<button class="b w-full !py-4" onclick="newForm('${e.id}')">▶ Mulai Pertandingan</button>`
     :`<button class="b w-full !py-4" onclick="newRound('${e.id}')">▶ Buat Ronde ${rs.length?Math.max(...rs)+1:1}${fmt=='mexicano'&&sd.length?' (urut klasemen)':''}</button>`}
   ${rs.map(rd=>`<div class="space-y-2"><h3 class="text-xs font-bold uppercase text-zinc-400">${rd?'Ronde '+rd:'Pertandingan'}</h3>
    ${M.filter(m=>(+m.round||0)==rd).map(m=>`<div onclick="openM('${m.id}')" class="c p-3 cursor-pointer flex justify-between items-center gap-2 ${m.status=='live'?'livecard':''}"><div class="min-w-0"><div class="text-[10px] text-zinc-500">${m.court?'Lapangan '+esc(m.court):''}${m.refereeName?' · Wasit: '+esc(m.refereeName):''}</div><div class="text-sm font-bold truncate">${esc(m.teamA)} <span class="text-zinc-500">vs</span> ${esc(m.teamB)}</div></div>
-   <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`:`<div class="font-black">${sm(m)}</div>`}${own&&m.status!='done'?`<div><button class="g !py-1 !px-2 !text-[11px] mt-1" onclick="event.stopPropagation();swapForm('${m.id}')">⇄ Ganti pemain</button></div>`:''}</div></div>`).join('')}</div>`).join('')||'<p class="text-xs text-zinc-500 text-center py-4">Belum ada pertandingan.</p>'}`;
+   <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?(U.guest?'':`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`):`<div class="font-black">${sm(m)}</div>`}${own&&m.status!='done'?`<div><button class="g !py-1 !px-2 !text-[11px] mt-1" onclick="event.stopPropagation();swapForm('${m.id}')">⇄ Ganti pemain</button></div>`:''}</div></div>`).join('')}</div>`).join('')||'<p class="text-xs text-zinc-500 text-center py-4">Belum ada pertandingan.</p>'}`;
 
   const boardHtml=sd.length?`<div class="text-[11px] text-zinc-500 text-right">${r.t=='padel'?'M 3 · S 1 · K 0 · Pembeda: selisih game':r.t=='tennis'?'M 3 · K 0 · Pembeda: selisih game':'M 3 · K 0 · Pembeda: selisih poin'}</div>
    <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr><th class="p-3 text-center">#</th><th class="p-3">${fix?'Tim':'Pemain'}</th><th class="p-3 text-center">M</th><th class="p-3 text-center">W</th><th class="p-3 text-center">D</th><th class="p-3 text-center">L</th><th class="p-3 text-center">+/-</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
@@ -336,11 +329,11 @@ function addPl(id){
   if(!list.length)return toast('Sudah terdaftar');
   opt('addPlayers',{id,list:JSON.stringify(list)},()=>{e.players=JSON.stringify(a)},list.length+' peserta didaftarkan')}
 function joinSelf(id){
-  const e=S.events.find(x=>x.id==id),a=P(e),mine=a.find(p=>p.u==U.id);
+  const e=S.events.find(x=>x.id==id),a=P(e),G=!!U.guest,mine=a.find(p=>G?p.g==U.id:p.u==U.id);
   if(mine){if(!confirm('Keluar dari event ini?'))return;
-    opt('leaveEvent',{id},()=>{e.players=JSON.stringify(a.filter(p=>p.id!=mine.id));e.teams=JSON.stringify(TM(e).filter(t=>t.a!=mine.id&&t.b!=mine.id))},'Kamu keluar dari event');return}
+    opt(G?'gLeave':'leaveEvent',{id},()=>{e.players=JSON.stringify(a.filter(p=>p.id!=mine.id));e.teams=JSON.stringify(TM(e).filter(t=>t.a!=mine.id&&t.b!=mine.id))},'Kamu keluar dari event');return}
   const pid=rid();
-  opt('joinEvent',{id,pid},()=>{e.players=JSON.stringify(a.concat([{id:pid,n:U.name,u:U.id}]))},'Berhasil Join ✓')}
+  opt(G?'gJoin':'joinEvent',{id,pid},()=>{e.players=JSON.stringify(a.concat([G?{id:pid,n:U.name,u:'',g:U.id}:{id:pid,n:U.name,u:U.id}]))},'Berhasil Join ✓')}
 function rmPl(id,pid){const e=S.events.find(x=>x.id==id),p=P(e).find(x=>x.id==pid);if(!p||!confirm('Hapus '+p.n+'?'))return;
   opt('rmPlayer',{id,pid},()=>{e.players=JSON.stringify(P(e).filter(x=>x.id!=pid));e.teams=JSON.stringify(TM(e).filter(t=>t.a!=pid&&t.b!=pid))},'Peserta dihapus')}
 async function setF(id,field,val){const r=await call('setField',{id,field,val:JSON.stringify(val)});toast(r.ok?'Tersimpan':r.error);lastAct=0;load()}
