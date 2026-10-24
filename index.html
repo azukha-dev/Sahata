@@ -125,6 +125,40 @@ async function doGuest(){
   if(!r.ok){toast(r.error);$('#gb').textContent='👀 Lihat Live sebagai Guest';return}
   U={id:r.guest.id,name:r.guest.name,guest:1};localStorage.setItem('sahata_user',JSON.stringify(U));boot();
 }
+// ---------- AUTH: 3 tombol (Masuk / Daftar / Guest) ----------
+let am='in',ke='';
+function setAm(m){const e=$('#ae');if(e)ke=e.value;am=m;authView()}
+function authView(){
+  const T=[['in','Masuk'],['up','Daftar'],['gu','Guest']],L={in:'Masuk',up:'Daftar',gu:'👀 Lihat Live sebagai Guest'};
+  const H={in:'Isi email yang sudah terdaftar.',up:'Isi nama dan email. Email dipakai untuk masuk selanjutnya.',gu:'Guest hanya bisa menonton pertandingan yang sedang live.'};
+  $('#app').innerHTML=`<div class="min-h-screen flex items-center justify-center p-5"><div class="c w-full max-w-sm p-7 space-y-4">
+  <div class="text-center space-y-1"><img src="logo.png" alt="SAHATA" class="w-44 mx-auto rounded-2xl bg-[#faf8ec] p-2">
+  <p class="text-zinc-400 text-sm">Sport Ultimate Ranking & Events</p></div>
+  <div class="grid grid-cols-3 gap-2">${T.map(t=>`<button onclick="setAm('${t[0]}')" class="${am==t[0]?'b':'g'} !px-2">${t[1]}</button>`).join('')}</div>
+  ${am=='up'?'<input id="rn" class="i" placeholder="Nama" autocomplete="name" onkeydown="if(event.key==\'Enter\')authGo()">':''}
+  ${am=='gu'?'<input id="gn" class="i" placeholder="Nama kamu" onkeydown="if(event.key==\'Enter\')authGo()">'
+  :`<input id="ae" type="email" class="i" placeholder="Email" autocomplete="email" value="${esc(ke)}" onkeydown="if(event.key=='Enter')authGo()">`}
+  <button id="ab" onclick="authGo()" class="b w-full">${L[am]}</button>
+  <p class="text-xs text-zinc-500 text-center">${H[am]}</p></div></div>`;
+}
+async function authGo(){
+  const btn=$('#ab'),lbl=btn.textContent,fail=m=>{toast(m);btn.textContent=lbl};
+  let r;
+  if(am=='gu'){
+    const name=$('#gn').value.trim();if(!name)return toast('Isi nama dulu');
+    btn.textContent='Memproses...';r=await call('guest',{name});
+    if(!r.ok)return fail(r.error);
+    U={id:r.guest.id,name:r.guest.name,guest:1};
+  }else{
+    const email=$('#ae').value.trim();ke=email;if(!email)return toast('Email wajib diisi');
+    if(am=='up'){const name=$('#rn').value.trim();if(!name)return toast('Isi nama untuk daftar');
+      btn.textContent='Memproses...';r=await call('register',{name,email})}
+    else{btn.textContent='Memproses...';r=await call('login',{email})}
+    if(!r.ok)return fail(r.error);
+    U=r.user;
+  }
+  localStorage.setItem('sahata_user',JSON.stringify(U));boot();
+}
 function logout(){localStorage.removeItem('sahata_user');U=null;closeOv();boot()}
 
 // ---------- SHELL ----------
