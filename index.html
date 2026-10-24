@@ -92,8 +92,9 @@ function authView(){
   <div class="text-center space-y-1"><img src="logo.png" alt="SAHATA" class="w-44 mx-auto rounded-2xl bg-[#faf8ec] p-2">
   <p class="text-zinc-400 text-sm">Sport Ultimate Ranking & Events</p></div>
   <input id="ae" type="email" class="i" placeholder="Email" autocomplete="email" onkeydown="if(event.key=='Enter')doAuth()">
-  <button id="ab" onclick="doAuth()" class="b w-full">Masuk</button>
-  <p class="text-xs text-zinc-500 text-center">Cukup email. Kalau belum terdaftar, akun dibuat otomatis.</p>
+  <input id="rn" class="i" placeholder="Nama (diisi khusus untuk Daftar)" autocomplete="name">
+  <div class="grid grid-cols-2 gap-2"><button id="ab" onclick="doAuth()" class="b">Masuk</button><button id="rb" onclick="doReg()" class="g">Daftar</button></div>
+  <p class="text-xs text-zinc-500 text-center">Masuk: isi email saja. Daftar: isi nama dan email.</p>
   <div class="flex items-center gap-3 text-xs text-zinc-600"><div class="flex-1 h-px bg-zinc-800"></div>atau<div class="flex-1 h-px bg-zinc-800"></div></div>
   <input id="gn" class="i" placeholder="Nama kamu (untuk Guest)" onkeydown="if(event.key=='Enter')doGuest()">
   <button id="gb" onclick="doGuest()" class="g w-full">👀 Lihat Live sebagai Guest</button>
@@ -105,6 +106,15 @@ async function doAuth(){
   $('#ab').textContent='Memproses...';
   const r=await call('login',{email});
   if(!r.ok){toast(r.error);$('#ab').textContent='Masuk';return}
+  U=r.user;localStorage.setItem('sahata_user',JSON.stringify(U));boot();
+}
+async function doReg(){
+  const email=$('#ae').value.trim(),name=$('#rn').value.trim();
+  if(!name)return toast('Isi nama untuk daftar');
+  if(!email)return toast('Email wajib diisi');
+  $('#rb').textContent='Memproses...';
+  const r=await call('register',{name,email});
+  if(!r.ok){toast(r.error);$('#rb').textContent='Daftar';return}
   U=r.user;localStorage.setItem('sahata_user',JSON.stringify(U));boot();
 }
 async function doGuest(){
