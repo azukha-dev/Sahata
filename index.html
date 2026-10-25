@@ -203,17 +203,17 @@ function rank(sp){
   L.forEach(o=>{o.wr=o.m?(o.w+o.d/2)/o.m:0;o.sc=(o.w+o.d/2+1.5)/(o.m+3)});
   const pl=(a,b)=>(b.m>0)-(a.m>0);
   return sp=='all'
-    ?L.sort((a,b)=>pl(a,b)||b.pt-a.pt||b.w-a.w||b.m-a.m||a.name.localeCompare(b.name))
+    ?L.sort((a,b)=>pl(a,b)||b.sc-a.sc||b.pt-a.pt||b.m-a.m||a.name.localeCompare(b.name))
     :L.sort((a,b)=>pl(a,b)||(sp=='padel'?b.pp-a.pp:b.pt-a.pt)||b.gd-a.gd||b.w-a.w||a.name.localeCompare(b.name))}
 function board(){
   const L=rank(sport),all=sport=='all',pd=sport=='padel',sd=all||pd;
-  const info=all?'M 3 · S 1 · K 0 (semua olahraga)'
+  const info=all?'Poin: M 3 · S 1 · K 0 · Urutan: Win Rate % (disesuaikan jumlah main)'
     :pd?'Poin = jumlah set/game yang dimenangkan tim'
     :sport=='tennis'?'M 3 · K 0 · Pembeda: selisih game'
     :'M 3 · K 0 · Pembeda: selisih poin';
   const tabs=[['all','Semua'],['padel','Padel'],['tennis','Tenis'],['badminton','Bulu Tangkis']];
   $('#v').innerHTML=`<div class="c p-6 bg-gradient-to-r from-zinc-900 to-black"><h1 class="text-2xl sm:text-4xl font-black uppercase">Leaderboard SAHATA</h1></div>
-  <div class="flex gap-2 overflow-x-auto">${tabs.map(t=>`<button onclick="sport='${t[0]}';board()" class="${sport==t[0]?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'} px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap">${t[1]}</button>`).join('')}</div><div class="text-[11px] text-zinc-500 text-right -mb-2">${info}</div>${bars(L.filter(p=>p.m).slice(0,5).map(p=>[p.name,sport=='padel'?p.pp:p.pt,p.id]))}
+  <div class="flex gap-2 overflow-x-auto">${tabs.map(t=>`<button onclick="sport='${t[0]}';board()" class="${sport==t[0]?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'} px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap">${t[1]}</button>`).join('')}</div><div class="text-[11px] text-zinc-500 text-right -mb-2">${info}</div>
   <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr>
   <th class="p-3 text-center">#</th><th class="p-3">Atlet</th><th class="p-3 text-center">Main</th><th class="p-3 text-center">Menang</th>${sd?'<th class="p-3 text-center">Seri</th>':''}<th class="p-3 text-center">Kalah</th>${all?'':'<th class="p-3 text-center">+/-</th>'}<th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
   ${L.map((p,i)=>{const top=i==0&&p.m>0;return`<tr class="${p.m?'':'opacity-50'}"><td class="p-3 text-center font-black ${top?'text-amber-400':'text-zinc-400'}">${top?'👑':i+1}</td>
@@ -343,7 +343,7 @@ function evDetail(e){
    ${M.filter(m=>(+m.round||0)==rd).map(m=>`<div onclick="openM('${m.id}')" class="c p-3 cursor-pointer flex justify-between items-center gap-2 ${m.status=='live'?'livecard':''}"><div class="min-w-0"><div class="text-[10px] text-zinc-500">${m.court?'Lapangan '+esc(m.court):''}${m.refereeName?' · Wasit: '+esc(m.refereeName):''}</div><div class="text-sm font-bold truncate">${esc(m.teamA)} <span class="text-zinc-500">vs</span> ${esc(m.teamB)}</div></div>
    <div class="text-right shrink-0">${badge(m)}${m.status=='upcoming'?`<button class="b !py-1.5 !px-3 mt-1" onclick="event.stopPropagation();startForm('${m.id}')">▶ Mulai</button>`:`<div class="font-black">${sm(m)}</div>`}${own&&m.status!='done'?`<div><button class="g !py-1 !px-2 !text-[11px] mt-1" onclick="event.stopPropagation();swapForm('${m.id}')">⇄ Ganti pemain</button></div>`:''}${own?`<div><button class="g !py-1 !px-2 !text-[11px] mt-1 text-red-400" onclick="event.stopPropagation();delMatch('${m.id}')">🗑 Delete</button></div>`:''}</div></div>`).join('')}</div>`).join('')||'<p class="text-xs text-zinc-500 text-center py-4">Belum ada pertandingan.</p>'}`;
 
-  const boardHtml=sd.length?`${bars(sd.slice(0,5).map(x=>[x.n,x.pt,'']))}<div class="text-[11px] text-zinc-500 text-right">${r.t=='padel'?'Poin = jumlah set/game yang dimenangkan tim':r.t=='tennis'?'M 3 · K 0 · Pembeda: selisih game':'M 3 · K 0 · Pembeda: selisih poin'}</div>
+  const boardHtml=sd.length?`<div class="text-[11px] text-zinc-500 text-right">${r.t=='padel'?'Poin = jumlah set/game yang dimenangkan tim':r.t=='tennis'?'M 3 · K 0 · Pembeda: selisih game':'M 3 · K 0 · Pembeda: selisih poin'}</div>
    <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr><th class="p-3 text-center">#</th><th class="p-3">${fix?'Tim':'Pemain'}</th><th class="p-3 text-center">M</th><th class="p-3 text-center">W</th><th class="p-3 text-center">D</th><th class="p-3 text-center">L</th><th class="p-3 text-center">+/-</th><th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
    ${sd.map((x,i)=>`<tr><td class="p-3 text-center font-black">${i<3?['🥇','🥈','🥉'][i]:i+1}</td><td class="p-3 font-bold">${esc(x.n)}</td><td class="p-3 text-center">${x.m}</td><td class="p-3 text-center text-emerald-400">${x.w}</td><td class="p-3 text-center">${x.d}</td><td class="p-3 text-center text-red-400">${x.l}</td><td class="p-3 text-center">${x.gd>0?'+':''}${x.gd}</td><td class="p-3 text-right font-black">${x.pt}</td></tr>`).join('')}</tbody></table></div>`
    :'<p class="text-xs text-zinc-500 text-center py-6">Leaderboard muncul setelah ada pertandingan yang selesai.</p>';
