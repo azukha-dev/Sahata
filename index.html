@@ -215,10 +215,10 @@ function board(){
   $('#v').innerHTML=`<div class="c p-6 bg-gradient-to-r from-zinc-900 to-black"><h1 class="text-2xl sm:text-4xl font-black uppercase">Leaderboard SAHATA</h1></div>
   <div class="flex gap-2 overflow-x-auto">${tabs.map(t=>`<button onclick="sport='${t[0]}';board()" class="${sport==t[0]?'bg-white text-black':'bg-zinc-900 border border-zinc-800 text-zinc-300'} px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap">${t[1]}</button>`).join('')}</div><div class="text-[11px] text-zinc-500 text-right -mb-2">${info}</div>
   <div class="c overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-zinc-400 uppercase bg-zinc-900/50"><tr>
-  <th class="p-3 text-center">#</th><th class="p-3">Atlet</th><th class="p-3 text-center">Main</th><th class="p-3 text-center">Menang</th>${sd?'<th class="p-3 text-center">Seri</th>':''}<th class="p-3 text-center">Kalah</th>${all?'':'<th class="p-3 text-center">+/-</th>'}<th class="p-3 text-right">Poin</th></tr></thead><tbody class="divide-y divide-zinc-900">
+  <th class="p-3 text-center">#</th><th class="p-3">Atlet</th><th class="p-3 text-center">Main</th><th class="p-3 text-center">Menang</th>${sd?'<th class="p-3 text-center">Seri</th>':''}<th class="p-3 text-center">Kalah</th>${all?'':'<th class="p-3 text-center">+/-</th>'}<th class="p-3 text-right">Poin</th>${all?'<th class="p-3 text-right">Win Rate</th>':''}</tr></thead><tbody class="divide-y divide-zinc-900">
   ${L.map((p,i)=>{const top=i==0&&p.m>0;return`<tr class="${p.m?'':'opacity-50'}"><td class="p-3 text-center font-black ${top?'text-amber-400':'text-zinc-400'}">${top?'👑':i+1}</td>
   <td class="p-3 font-bold"><button class="flex items-center gap-2 text-left" onclick="openP('${p.id}')">${av(p.id,p.name,'w-8 h-8')}<span class="underline decoration-zinc-700">${esc(p.name)}</span></button></td><td class="p-3 text-center">${p.m}</td><td class="p-3 text-center text-emerald-400 font-bold">${p.w}</td>${sd?`<td class="p-3 text-center">${p.d}</td>`:''}<td class="p-3 text-center text-red-400 font-bold">${p.l}</td>
-  ${all?'':`<td class="p-3 text-center">${p.gd>0?'+':''}${p.gd}</td>`}<td class="p-3 text-right font-black">${sport=='padel'?p.pp:p.pt}</td></tr>`}).join('')||`<tr><td colspan=8 class="p-8 text-center text-zinc-500">Belum ada atlet</td></tr>`}</tbody></table></div>`;
+  ${all?'':`<td class="p-3 text-center">${p.gd>0?'+':''}${p.gd}</td>`}<td class="p-3 text-right font-black">${sport=='padel'?p.pp:p.pt}</td>${all?`<td class="p-3 text-right font-bold text-orange-400">${p.m?Math.round(p.wr*100)+'%':'-'}</td>`:''}</tr>`}).join('')||`<tr><td colspan=8 class="p-8 text-center text-zinc-500">Belum ada atlet</td></tr>`}</tbody></table></div>`;
 }
 
 // ---------- RULES & SKORING ----------
@@ -604,7 +604,7 @@ function players(){
 let pfId=null,PHO={};
 try{PHO=JSON.parse(localStorage.getItem('sahata_ph'))||{}}catch(e){}
 const pp=(m,s,t)=>+((hasSets(R(m))?s.s:s.g)[t])||0;
-const av=(id,name,sz)=>PHO[id]?`<img src="${PHO[id]}" class="${sz||'w-11 h-11'} rounded-xl object-cover shrink-0">`:`<div class="${sz||'w-11 h-11'} rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-black shrink-0">${esc((name||'?')[0]).toUpperCase()}</div>`;
+const av=(id,name,sz)=>PHO[id]?`<img src="${PHO[id]}" class="${sz||'w-11 h-11'} rounded-xl object-cover shrink-0">`:`<div class="${sz||'w-11 h-11'} rounded-xl bg-orange-500 text-black flex items-center justify-center font-black shrink-0">${esc((name||'?')[0]).toUpperCase()}</div>`;
 const donut=(w,d,l)=>{const n=w+d+l;if(!n)return'';const a=w/n*100,b=a+d/n*100;
   return `<div class="relative w-24 h-24 shrink-0 rounded-full" style="background:conic-gradient(#10b981 0 ${a}%,#f59e0b ${a}% ${b}%,#ef4444 ${b}% 100%)"><div class="absolute inset-[14px] rounded-full bg-[#09090b] flex items-center justify-center font-black text-sm">${Math.round(w/n*100)}%</div></div>`};
 const spark=v=>{if(v.length<2)return'<p class="text-xs text-zinc-500 text-center py-4">Grafik muncul setelah ada pertandingan.</p>';
